@@ -2,6 +2,7 @@
 
 namespace App\Extensions\Wechat;
 
+use Log;
 use Exception;
 use GuzzleHttp\Client;
 
@@ -15,11 +16,21 @@ class WebApi
 
     public function __construct()
     {
-        $this->client = new Client();
+        $this->client = new Client(['cookies' => true]);
     }
 
     protected function request($method, $uri, array $options = [])
     {
+        $default = [
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36',
+            ],
+        ];
+
+        $options = array_replace_recursive($default, $options);
+
+        Log::info('request headers', $options);
+
         $response = $this->client->request($method, $uri, $options);
 
         if ($response->getStatusCode() != '200') {
@@ -77,6 +88,7 @@ class WebApi
      */
     public function loginListen($uuid)
     {
+        Log::info('listening user scan qrcode to login');
         $url = 'https://login.wx2.qq.com/cgi-bin/mmwebwx-bin/login';
         $response = $this->request('GET', $url, [
             'query' => [
@@ -86,6 +98,8 @@ class WebApi
             ]
         ]);
 
+        Log::info('response ' . $response);
+
         preg_match('|window.code=(\d+);|', $response, $matches);
 
         if (empty($matches) || count($matches) != 2) {
@@ -94,14 +108,33 @@ class WebApi
 
         $code = intval($matches[1]);
 
-        if ($code == 200) {
-            preg_match('|window.code=200;window.redirect_uri="(\S+?)";|', $response, $matches);
+        if ($code != 200) {
+            return null;
         }
 
+        preg_match('|window.redirect_uri="(\S+?)";|', $response, $matches);
         if (empty($matches) || count($matches) != 2) {
             throw new Exception('login success parse error');
         }
 
-        return $matches[1];
+        return $this->loginConfirm($matches[1]);
+    }
+
+    public function loginConfirm($redirect_uri)
+    {
+        $response = $this->request('GET', $redirect_uri, [
+            'headers' => [
+                'Accept' => 'application/json, text/plain, */*',
+                'Accept-Encoding' => 'gzip, deflate, sdch, br',
+                'Referer' => 'https://wx2.qq.com/?&lang=zh_CN',
+            ],
+        ]);
+
+        $info = simplexml_load_string($response);
+        if ($info && ($info = (array)$info) && $info['ret'] == 0) {
+            return array_only($info, ['skey', 'wxsid', 'wxuin', 'pass_ticket']);
+        }
+
+        return null;
     }
 }

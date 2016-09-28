@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use Cache;
+use Storage;
 use App\Extensions\Wechat\WebApi;
 use Illuminate\Console\Command;
 
@@ -22,7 +24,7 @@ class WechatListen extends Command
     protected $description = 'simulate web wechat and listening message';
 
     /**
-     * @var \App\Extensions\Wechat\WebApi
+     * @var WebApi
      */
     protected $api;
 
@@ -45,6 +47,30 @@ class WechatListen extends Command
      */
     public function handle()
     {
-        dd($this->api->getUUID());
+        while (true) {
+            $uuid = $this->getUUID();
+            $qrcode_login_url = $this->api->getQRCode($uuid);
+
+            Storage::put('wechat/qrcode.png', file_get_contents($qrcode_login_url));
+
+            while (true) {
+                if ($login_info = $this->api->loginListen($uuid)) {
+                    dd($login_info);
+                }
+            }
+        }
+    }
+
+    protected function getUUID()
+    {
+        $key = 'wechat_login_uuid';
+        $uuid = Cache::get($key);
+
+        if (empty($uuid)) {
+            $uuid = $this->api->getUUID();
+            Cache::add($key, $uuid, 3);
+        }
+
+        return $uuid;
     }
 }
