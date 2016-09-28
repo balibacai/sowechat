@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exceptions\Wechat;
+namespace App\Extensions\Wechat;
 
 use Exception;
 use GuzzleHttp\Client;

@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Exceptions\Wechat\WebApi;
+use App\Extensions\Wechat\WebApi;
 use Illuminate\Console\Command;
 
 class WechatListen extends Command
@@ -22,7 +22,7 @@ class WechatListen extends Command
     protected $description = 'simulate web wechat and listening message';
 
     /**
-     * @var \App\Exceptions\Wechat\WebApi
+     * @var \App\Extensions\Wechat\WebApi
      */
     protected $api;
 
