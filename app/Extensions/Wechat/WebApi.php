@@ -16,7 +16,7 @@ class WebApi
 
     public function __construct()
     {
-        $this->client = new Client(['cookies' => true]);
+        $this->client = new Client(['cookies' => true, 'allow_redirects' => false]);
     }
 
     protected function request($method, $uri, array $options = [])
@@ -33,7 +33,7 @@ class WebApi
 
         $response = $this->client->request($method, $uri, $options);
 
-        if ($response->getStatusCode() != '200') {
+        if (! in_array($response->getStatusCode(), ['200', '301', '302'])) {
             throw new Exception('Request Error');
         }
 
@@ -122,13 +122,7 @@ class WebApi
 
     public function loginConfirm($redirect_uri)
     {
-        $response = $this->request('GET', $redirect_uri, [
-            'headers' => [
-                'Accept' => 'application/json, text/plain, */*',
-                'Accept-Encoding' => 'gzip, deflate, sdch, br',
-                'Referer' => 'https://wx2.qq.com/?&lang=zh_CN',
-            ],
-        ]);
+        $response = $this->request('GET', $redirect_uri);
 
         $info = simplexml_load_string($response);
         if ($info && ($info = (array)$info) && $info['ret'] == 0) {
