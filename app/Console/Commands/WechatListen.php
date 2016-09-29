@@ -55,7 +55,7 @@ class WechatListen extends Command
 
             while (true) {
                 if ($login_info = $this->api->loginListen($uuid)) {
-                    dd($login_info);
+                    $this->api->loginInit($login_info);
                 }
             }
         }

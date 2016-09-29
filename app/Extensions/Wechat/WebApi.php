@@ -16,6 +16,7 @@ class WebApi
 
     public function __construct()
     {
+        // important, don't allow auto redirect
         $this->client = new Client(['cookies' => true, 'allow_redirects' => false]);
     }
 
@@ -130,5 +131,28 @@ class WebApi
         }
 
         return null;
+    }
+
+    public function loginInit($login_info)
+    {
+        $url = sprintf('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxinit?pass_ticket=%s&r=%d',
+            $login_info['pass_ticket'], $this->getTimeStamp());
+
+        $response = $this->request('POST', $url, [
+            'headers' => [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ],
+            'debug' => true,
+            'body' => json_encode([
+                'BaseRequest' => [
+                    'DeviceID' => 'e' . random_int(100000000000000, 999999999999999),
+                    'Sid' => $login_info['wxsid'],
+                    'Skey' => $login_info['skey'],
+                    'Uin' => $login_info['wxuin'],
+                ]
+            ])
+        ]);
+
+        dd(json_decode($response, true));
     }
 }
