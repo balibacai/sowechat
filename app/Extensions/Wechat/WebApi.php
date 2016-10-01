@@ -13,11 +13,20 @@ class WebApi
      * @var \GuzzleHttp\Client
      */
     protected $client;
+    /**
+     * @var array
+     */
+    protected $loginInfo = []; // ['skey', 'wxsid', 'wxuin', 'pass_ticket']
+    /**
+     * @var SyncKey
+     */
+    protected $syncKey;
 
-    public function __construct()
+    public function __construct(SyncKey $syncKey)
     {
         // important, don't allow auto redirect
         $this->client = new Client(['cookies' => new CookieJar(), 'allow_redirects' => false]);
+        $this->syncKey = $syncKey;
     }
 
     protected function request($method, $uri, array $options = [])
@@ -48,6 +57,35 @@ class WebApi
     protected function getTimeStamp()
     {
         return intval(microtime(true) * 1000);
+    }
+
+    /**
+     * 当前时间取反 (获取getTimeStamp低32位数据,然后去反操作)
+     * @return int
+     */
+    protected function getReverseTimeStamp()
+    {
+        $timestamp = $this->getTimeStamp();
+        return 0xFFFFFFFF + (($timestamp >> 32 << 32) - $timestamp);
+    }
+
+    /**
+     * 获取设备id
+     * @return string
+     */
+    protected function getDeviceId()
+    {
+        return 'e' . random_int(100000000000000, 999999999999999);
+    }
+
+    protected function getBaseRequest()
+    {
+        return [
+            'DeviceID' => $this->getDeviceId(),
+            'Sid' => $this->loginInfo['wxsid'],
+            'Skey' => $this->loginInfo['skey'],
+            'Uin' => $this->loginInfo['wxuin'],
+        ];
     }
 
     /**
@@ -133,23 +171,20 @@ class WebApi
         return null;
     }
 
-    public function loginInit($login_info)
+    public function loginInit()
     {
-        $url = sprintf('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=%d&pass_ticket=%s',
-            $this->getTimeStamp(), $login_info['pass_ticket']);
+        $url = sprintf('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit');
 
         $response = $this->request('POST', $url, [
             'headers' => [
                 'Content-Type' => 'application/json; charset=UTF-8',
             ],
-            'debug' => true,
+            'query' => [
+                'r' => $this->getReverseTimeStamp(),
+                'pass_ticket' => $this->loginInfo['pass_ticket'],
+            ],
             'body' => json_encode([
-                'BaseRequest' => [
-                    'DeviceID' => 'e' . random_int(100000000000000, 999999999999999),
-                    'Sid' => $login_info['wxsid'],
-                    'Skey' => $login_info['skey'],
-                    'Uin' => $login_info['wxuin'],
-                ]
+                'BaseRequest' => $this->getBaseRequest()
             ])
         ]);
 
@@ -158,6 +193,69 @@ class WebApi
         if (! $content && array_get($content, 'BaseResponse.Ret', 1100) !== 0) {
             throw new Exception('webwxinit fail');
         }
+
+        $this->syncKey->refresh($content->SyncKey);
+
+        return $content;
+    }
+
+    /**
+     * syncCheck
+     * @return mixed {retcode:"xxx", selector:"xxx"}
+     * @throws Exception
+     */
+    public function syncCheck()
+    {
+        $url = 'https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck';
+        $response = $this->client->request('GET', $url, [
+            'query' => [
+                '_' => $this->getTimeStamp(),
+                'r' => $this->getTimeStamp(),
+                'skey' => $this->loginInfo['skey'],
+                'sid' => $this->loginInfo['wxsid'],
+                'uin' => $this->loginInfo['wxuin'],
+                'deviceid' => $this->getDeviceId(),
+                'synckey' => $this->syncKey->toString(),
+            ]
+        ]);
+
+        preg_match('|window.synccheck="(\S+?)";|', $response, $matches);
+        if (empty($matches) || count($matches) != 2) {
+            throw new Exception('synccheck response parse error');
+        }
+
+        return json_decode($matches[1], true);
+    }
+
+    public function syncDetail()
+    {
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=&skey=@&lang=en_US';
+
+        $response = $this->client->request('POST', $url, [
+            'headers' => [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ],
+           'query' => [
+               'skey' => $this->loginInfo['skey'],
+               'sid' => $this->loginInfo['wxsid'],
+               'lang' => 'zh_CN',
+           ],
+           'body' => json_encode(
+               [
+                   'BaseRequest' => $this->getBaseRequest(),
+                   'SyncKey' => $this->syncKey->getData(),
+                   'rr' => ~$this->getReverseTimeStamp(),
+               ]
+           )
+        ]);
+
+        $content = json_decode($response, true);
+
+        if (array_get($content, 'BaseResponse.Ret') !== '0') {
+            throw new Exception('webwxsync response error');
+        }
+
+        $this->syncKey->refresh(array_get($content, 'SyncKey'));
 
         return $content;
     }
