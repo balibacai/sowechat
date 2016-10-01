@@ -47,18 +47,7 @@ class WechatListen extends Command
      */
     public function handle()
     {
-        while (true) {
-            $uuid = $this->getUUID();
-            $qrcode_login_url = $this->api->getQRCode($uuid);
-
-            Storage::put('wechat/qrcode.png', file_get_contents($qrcode_login_url));
-
-            while (true) {
-                if ($login_info = $this->api->loginListen($uuid)) {
-                    $this->api->loginInit($login_info);
-                }
-            }
-        }
+        $this->api->run();
     }
 
     protected function getUUID()

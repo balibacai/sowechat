@@ -328,6 +328,11 @@ class WebApi
         }
     }
 
+    /**
+     * get detail when the method syncCheck got new message
+     * @return mixed
+     * @throws Exception
+     */
     public function syncDetail()
     {
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=&skey=@&lang=en_US';
@@ -361,6 +366,10 @@ class WebApi
         return $content;
     }
 
+    /**
+     * get user all contact
+     * @throws Exception
+     */
     public function getContact()
     {
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=en_US&r=1475322309689&seq=0&skey=@crypt_4597c5ec_d604537018e16998ac4e3dfab300fdde';
@@ -382,11 +391,16 @@ class WebApi
         $this->contact = new Contact(array_get($content, 'MemberList', []));
     }
 
+    /**
+     * get group members by chunk
+     * @throws Exception
+     */
     public function getBatchGroupMembers()
     {
+        $chunk_size = 30;
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact';
 
-        foreach(array_chunk($this->contact->getGroups(), 30) as $groups) {
+        foreach(array_chunk($this->contact->getGroups(), $chunk_size) as $groups) {
             $response = $this->request('POST', $url, [
                 'query' => [
                     'lang' => 'zh_CN',
@@ -416,6 +430,10 @@ class WebApi
         }
     }
 
+    /**
+     * receive message and fire event
+     * @param $messages
+     */
     public function receiveMessage($messages)
     {
         foreach ($messages as $message) {
