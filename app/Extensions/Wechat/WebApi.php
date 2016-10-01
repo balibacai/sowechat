@@ -335,7 +335,7 @@ class WebApi
      */
     public function syncDetail()
     {
-        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=&skey=@&lang=en_US';
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync';
 
         $response = $this->request('POST', $url, [
             'headers' => [
