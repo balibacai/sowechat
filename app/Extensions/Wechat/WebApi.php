@@ -3,6 +3,7 @@
 namespace App\Extensions\Wechat;
 
 use Log;
+use Storage;
 use Exception;
 use GuzzleHttp\Client;
 
@@ -22,11 +23,46 @@ class WebApi
      */
     protected $syncKey;
 
+    /**
+     * login user
+     * @var array
+     */
+    protected $user = [];
+
+    /**
+     * 用户通讯录
+     * @var Contact
+     */
+    protected $contact = [];
+
     public function __construct(SyncKey $syncKey)
     {
         // important, don't allow auto redirect
         $this->client = new Client(['cookies' => new CookieJar(), 'allow_redirects' => false]);
         $this->syncKey = $syncKey;
+    }
+
+    public function run()
+    {
+        while (true) {
+            $uuid = $this->getUUID();
+            $qrcode_login_url = $this->getQRCode($uuid);
+
+            Storage::put('wechat/qrcode.png', file_get_contents($qrcode_login_url));
+
+            while (true) {
+                if ($login_info = $this->loginListen($uuid)) {
+                    $this->loginInit();
+                    $this->statusNotify();
+                    $this->getContact();
+                    $this->getBatchGroupMembers();
+
+                    while (true) {
+                        $check_info = $this->syncCheck();
+                    }
+                }
+            }
+        }
     }
 
     protected function request($method, $uri, array $options = [])
@@ -173,7 +209,7 @@ class WebApi
 
     public function loginInit()
     {
-        $url = sprintf('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit');
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit';
 
         $response = $this->request('POST', $url, [
             'headers' => [
@@ -184,17 +220,46 @@ class WebApi
                 'pass_ticket' => $this->loginInfo['pass_ticket'],
             ],
             'body' => json_encode([
-                'BaseRequest' => $this->getBaseRequest()
+                'BaseRequest' => $this->getBaseRequest(),
             ])
         ]);
 
         $content = json_decode($response, true);
 
-        if (! $content && array_get($content, 'BaseResponse.Ret', 1100) !== 0) {
+        if (! $content && array_get($content, 'BaseResponse.Ret') !== 0) {
             throw new Exception('webwxinit fail');
         }
 
-        $this->syncKey->refresh($content->SyncKey);
+        $this->syncKey->refresh(array_get($content, 'SyncKey', []));
+
+        $this->user = array_get($content, 'User', []);
+
+        return $content;
+    }
+
+    public function statusNotify()
+    {
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxstatusnotify';
+        $response = $this->request('POST', $url, [
+            'headers' => [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ],
+            'body' => json_encode(
+                [
+                    'BaseRequest' => $this->getBaseRequest(),
+                    'ClientMsgId' => $this->getTimeStamp(),
+                    'Code' => 3,
+                    'FromUserName' => array_get($this->user, 'UserName'),
+                    'ToUserName' => array_get($this->user, 'UserName'),
+                ]
+            )
+        ]);
+
+        $content = json_decode($response, true);
+
+        if (! $content && array_get($content, 'BaseResponse.Ret') !== 0) {
+            throw new Exception('statusnotify fail');
+        }
 
         return $content;
     }
@@ -207,7 +272,7 @@ class WebApi
     public function syncCheck()
     {
         $url = 'https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck';
-        $response = $this->client->request('GET', $url, [
+        $response = $this->request('GET', $url, [
             'query' => [
                 '_' => $this->getTimeStamp(),
                 'r' => $this->getTimeStamp(),
@@ -231,7 +296,7 @@ class WebApi
     {
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=&skey=@&lang=en_US';
 
-        $response = $this->client->request('POST', $url, [
+        $response = $this->request('POST', $url, [
             'headers' => [
                 'Content-Type' => 'application/json; charset=UTF-8',
             ],
@@ -252,11 +317,66 @@ class WebApi
         $content = json_decode($response, true);
 
         if (array_get($content, 'BaseResponse.Ret') !== '0') {
-            throw new Exception('webwxsync response error');
+            throw new Exception('webwxsync error');
         }
 
         $this->syncKey->refresh(array_get($content, 'SyncKey'));
 
         return $content;
+    }
+
+    public function getContact()
+    {
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=en_US&r=1475322309689&seq=0&skey=@crypt_4597c5ec_d604537018e16998ac4e3dfab300fdde';
+        $response = $this->request('GET', $url, [
+            'query' => [
+                'lang' => 'zh_CN',
+                'r' => $this->getTimeStamp(),
+                'seq' => 0,
+                'skey' => $this->loginInfo['skey'],
+            ],
+        ]);
+
+        $content = json_decode($response, true);
+
+        if (array_get($content, 'BaseResponse.Ret') !== '0') {
+            throw new Exception('getcontact error');
+        }
+
+        $this->contact = new Contact(array_get($content, 'MemberList', []));
+    }
+
+    public function getBatchGroupMembers()
+    {
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact';
+
+        foreach(array_chunk($this->contact->getGroups(), 30) as $groups) {
+            $response = $this->request('POST', $url, [
+                'query' => [
+                    'lang' => 'zh_CN',
+                    'r' => $this->getTimeStamp(),
+                    'type' => 'ex',
+                ],
+                'body' => json_encode(
+                    [
+                        'BaseRequest' => $this->getBaseRequest(),
+                        'Count' => count($groups),
+                        'List' => array_map(function($group) {
+                            return array_only($group, ['UserName', 'EncryChatRoomId']);
+                        }, $groups),
+                    ]
+                )
+            ]);
+
+            $content = json_decode($response, true);
+
+            if (array_get($content, 'BaseResponse.Ret') !== '0') {
+                throw new Exception('getcontact error');
+            }
+
+            foreach(array_get($content, 'ContactList', []) as $group_list) {
+                $this->contact->setGroupMembers($group_list['UserName'], $group_list['MemberList']);
+            }
+        }
     }
 }
