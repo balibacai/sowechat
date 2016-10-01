@@ -419,6 +419,7 @@ class WebApi
         foreach ($messages as $message) {
             switch ($message['MsgType']) {
                 case MessageType::Text:
+                case MessageType::LinkShare:
                     $content = $message['Content'];
                     break;
 
@@ -429,12 +430,18 @@ class WebApi
                     break;
 
                 default:
-                    Log::warning('unknown message type', $message);
+                    Log::info('other message type', $message);
                     break;
             }
         }
     }
 
+    /**
+     * download media message, eg, image,voice,video
+     * @param $message
+     * @return bool|string
+     * @throws Exception
+     */
     public function downloadMedia($message)
     {
         switch ($message['MsgType']) {
