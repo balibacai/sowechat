@@ -3,6 +3,7 @@
 namespace App\Extensions\Wechat;
 
 use Log;
+use Psr\Http\Message\ResponseInterface;
 use Storage;
 use Exception;
 use GuzzleHttp\Client;
@@ -423,7 +424,7 @@ class WebApi
                 case MessageType::Image:
                     break;
 
-                case MessageType::Audio:
+                case MessageType::Voice:
                     break;
 
                 case MessageType::Video:
@@ -434,5 +435,23 @@ class WebApi
                     break;
             }
         }
+    }
+
+    public function downloadImage($message)
+    {
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg';
+        $image_suffix = 'jpg';
+        $data = $this->request('GET', $url, [
+            'query' => [
+                'MsgID' => $message['MsgID'],
+                'skey' => $this->loginInfo['skey'],
+                // 'type' => 'slave', // thumbnail
+            ],
+            'on_headers' => function (ResponseInterface $response) use ($image_suffix) {
+                $image_suffix = last(explode('/', $response->getHeaderLine('Content-Type')));
+            }
+        ]);
+
+        Storage::put(storage_path('wechat/image/' . $message['FromUserName'] . '/' . $message['MsgId'] . $image_suffix), $data);
     }
 }
