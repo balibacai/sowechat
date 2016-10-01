@@ -417,17 +417,15 @@ class WebApi
     public function receiveMessage($messages)
     {
         foreach ($messages as $message) {
-            switch ($message['AppMsgType']) {
+            switch ($message['MsgType']) {
                 case MessageType::Text:
+                    $content = $message['Content'];
                     break;
 
                 case MessageType::Image:
-                    break;
-
                 case MessageType::Voice:
-                    break;
-
                 case MessageType::Video:
+                    $file_path = $this->downloadMedia($message);
                     break;
 
                 default:
@@ -437,21 +435,44 @@ class WebApi
         }
     }
 
-    public function downloadImage($message)
+    public function downloadMedia($message)
     {
-        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg';
-        $image_suffix = 'jpg';
+        switch ($message['MsgType']) {
+            case MessageType::Image:
+                $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg';
+                $suffix = 'jpg';
+                $path = storage_path('wechat/image/' . $message['MsgId'] . $suffix);
+                break;
+
+            case MessageType::Voice:
+                $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice';
+                $suffix = 'mp3';
+                $path = storage_path('wechat/voice/' . $message['MsgId'] . $suffix);
+                break;
+
+            case MessageType::Video:
+                $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo';
+                $suffix = 'mp4';
+                $path = storage_path('wechat/video/' . $message['MsgId'] . $suffix);
+                break;
+
+            default:
+                return false;
+                break;
+        }
+
         $data = $this->request('GET', $url, [
             'query' => [
-                'MsgID' => $message['MsgID'],
+                'msgid' => $message['MsgID'],
                 'skey' => $this->loginInfo['skey'],
-                // 'type' => 'slave', // thumbnail
             ],
-            'on_headers' => function (ResponseInterface $response) use ($image_suffix) {
-                $image_suffix = last(explode('/', $response->getHeaderLine('Content-Type')));
+            'on_headers' => function (ResponseInterface $response) use (& $suffix) {
+                $suffix = last(explode('/', $response->getHeaderLine('Content-Type')));
             }
         ]);
 
-        Storage::put(storage_path('wechat/image/' . $message['FromUserName'] . '/' . $message['MsgId'] . $image_suffix), $data);
+        Storage::put($path, $data);
+
+        return $path;
     }
 }
