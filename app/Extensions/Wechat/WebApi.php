@@ -8,6 +8,7 @@ use Cache;
 use Storage;
 use Exception;
 use GuzzleHttp\Client;
+use Illuminate\Cache\RateLimiter;
 use App\Events\WechatMessageEvent;
 use Psr\Http\Message\ResponseInterface;
 
@@ -39,6 +40,12 @@ class WebApi
      */
     protected $contact;
 
+    /**
+     * request limit
+     * @var RateLimiter
+     */
+    protected $limiter;
+
     public function __construct()
     {
         // important, don't allow auto redirect
@@ -48,6 +55,8 @@ class WebApi
             'http_errors' => false,
             'debug' => true,
         ]);
+
+        $this->limiter = app(RateLimiter::class);
     }
 
     public function run()
@@ -361,6 +370,13 @@ class WebApi
 
         if ($retcode !== 0) {
             return SyncCheckStatus::Fail;
+        }
+
+        // if too many request in 1 min, sleep some seconds
+        $max_requests = 10;
+        if ($this->limiter->hit($url) && $this->limiter->tooManyAttempts($url, $max_requests, 1)) {
+            Log::warning('too many request in 1 min, sleep some seconds');
+            sleep(10);
         }
 
         if ($selector == 0) {
