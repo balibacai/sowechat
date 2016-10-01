@@ -43,30 +43,34 @@ class WebApi
 
     public function run()
     {
-        $is_login = false;
-        while (! $is_login) {
-            $uuid = $this->getUUID();
-            $qrcode_login_url = $this->getQRCode($uuid);
+        while (true) {
+            try {
+                $uuid = $this->getUUID();
+                $qrcode_login_url = $this->getQRCode($uuid);
 
-            Storage::put('wechat/qrcode.png', file_get_contents($qrcode_login_url));
+                Storage::put('wechat/qrcode.png', file_get_contents($qrcode_login_url));
 
-            while (! $this->loginListen($uuid)) {
-                $this->loginInit();
-                $this->statusNotify();
-                $this->getContact();
-                $this->getBatchGroupMembers();
+                while (! $this->loginListen($uuid)) {
+                    $this->loginInit();
+                    $this->statusNotify();
+                    $this->getContact();
+                    $this->getBatchGroupMembers();
 
-                while (true) {
-                    $check_status = $this->syncCheck();
-                    switch ($check_status) {
-                        case SyncCheckStatus::NewMessage:
+                    while (true) {
+                        $check_status = $this->syncCheck();
+                        switch ($check_status) {
+                            case SyncCheckStatus::NewMessage:
 
-                            break;
-                        case SyncCheckStatus::Fail:
-
-                            break;
+                                break;
+                            case SyncCheckStatus::Fail:
+                                throw new Exception('lost user');
+                                break;
+                        }
                     }
                 }
+
+            } catch (Exception $e) {
+                Log::error($e->getMessage());
             }
         }
     }
