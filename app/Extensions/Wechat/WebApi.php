@@ -57,21 +57,23 @@ class WebApi
         ]);
 
         $this->limiter = app(RateLimiter::class);
+        $this->limiter->clear('synccheck');
     }
 
     public function run()
     {
         while (true) {
             try {
-                // TODO regenerate uuid when time exceed 5 min
-                if (($uuid = Cache::get('wechat_login_uuid')) == null) {
-                    $uuid = $this->getUUID();
-                    Storage::put('wechat/qrcode.png', file_get_contents($this->getQRCode($uuid)));
-                    Cache::put('wechat_login_uuid', $uuid, 5);
-                }
-
                 // wait until user login
-                while (! $this->loginListen($uuid));
+                do {
+                    // regenerate uuid when time exceed 5 min
+                    if (($uuid = Cache::get('wechat_login_uuid')) == null) {
+                        $uuid = $this->getUUID();
+                        Storage::put('wechat/qrcode.png', file_get_contents($this->getQRCode($uuid)));
+                        Cache::put('wechat_login_uuid', $uuid, 5);
+                    }
+
+                } while (! $this->loginListen($uuid));
 
                 $this->loginInit();
                 $this->statusNotify();
@@ -81,7 +83,7 @@ class WebApi
                     $this->getContact();
                     $this->getBatchGroupMembers();
                 } catch (Exception $e) {
-                    Log::error('get contact error', array_slice($e->getTrace(), 0, 3));
+                    Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
                 }
 
                 // message listen
@@ -103,7 +105,7 @@ class WebApi
                                     Log::info('contact changed', $detail['ModContactList']);
                                 }
                             } catch (Exception $e) {
-                                Log::error('get contact error', array_slice($e->getTrace(), 0, 3));
+                                Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
                             }
                             break;
 
@@ -118,7 +120,7 @@ class WebApi
 
                 }
             } catch (Exception $e) {
-                Log::error($e->getMessage(), array_slice($e->getTrace(), 0, 3));
+                Log::error($e->getMessage(), array_slice($e->getTrace(), 0, 5));
             }
         }
     }
@@ -374,7 +376,7 @@ class WebApi
 
         // if too many request in 1 min, sleep some seconds
         $max_requests = 10;
-        if ($this->limiter->hit($url) && $this->limiter->tooManyAttempts($url, $max_requests, 1)) {
+        if ($this->limiter->hit('synccheck') && $this->limiter->tooManyAttempts('synccheck', $max_requests, 1)) {
             Log::warning('too many request in 1 min, sleep some seconds');
             sleep(10);
         }
