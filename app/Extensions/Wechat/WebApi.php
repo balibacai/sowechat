@@ -3,10 +3,12 @@
 namespace App\Extensions\Wechat;
 
 use Log;
-use Psr\Http\Message\ResponseInterface;
+use Event;
 use Storage;
 use Exception;
 use GuzzleHttp\Client;
+use App\Events\WechatMessageEvent;
+use Psr\Http\Message\ResponseInterface;
 
 class WebApi
 {
@@ -421,12 +423,14 @@ class WebApi
                 case MessageType::Text:
                 case MessageType::LinkShare:
                     $content = $message['Content'];
+                    Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $content, $message));
                     break;
 
                 case MessageType::Image:
                 case MessageType::Voice:
                 case MessageType::Video:
                     $file_path = $this->downloadMedia($message);
+                    Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $file_path, $message));
                     break;
 
                 default:
