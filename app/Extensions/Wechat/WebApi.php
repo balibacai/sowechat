@@ -60,7 +60,16 @@ class WebApi
                         $check_status = $this->syncCheck();
                         switch ($check_status) {
                             case SyncCheckStatus::NewMessage:
-
+                                $detail = $this->syncDetail();
+                                if ($detail['AddMsgCount'] > 0) {
+                                    $this->receiveMessage($detail['AddMsgList']);
+                                }
+                                if ($detail['DelContactCount'] > 0) {
+                                    Log::info('contact delete', $detail['DelContactList']);
+                                }
+                                if ($detail['ModContactCount'] > 0) {
+                                    Log::info('contact changed', $detail['ModContactList']);
+                                }
                                 break;
                             case SyncCheckStatus::Fail:
                                 throw new Exception('lost user');
@@ -400,6 +409,29 @@ class WebApi
 
             foreach(array_get($content, 'ContactList', []) as $group_list) {
                 $this->contact->setGroupMembers($group_list['UserName'], $group_list['MemberList']);
+            }
+        }
+    }
+
+    public function receiveMessage($messages)
+    {
+        foreach ($messages as $message) {
+            switch ($message['AppMsgType']) {
+                case MessageType::Text:
+                    break;
+
+                case MessageType::Image:
+                    break;
+
+                case MessageType::Audio:
+                    break;
+
+                case MessageType::Video:
+                    break;
+
+                default:
+                    Log::warning('unknown message type', $message);
+                    break;
             }
         }
     }
