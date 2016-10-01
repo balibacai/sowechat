@@ -67,6 +67,7 @@ class WebApi
                 $this->loginInit();
                 $this->statusNotify();
 
+                // get contact
                 try {
                     $this->getContact();
                     $this->getBatchGroupMembers();
@@ -74,6 +75,7 @@ class WebApi
                     Log::error('get contact error', array_slice($e->getTrace(), 0, 3));
                 }
 
+                // message listen
                 while (true) {
                     $check_status = $this->syncCheck();
 
