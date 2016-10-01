@@ -230,6 +230,7 @@ class CookieJar implements CookieJarInterface
         $uri = $request->getUri();
         $scheme = $uri->getScheme();
 
+        // set all cookie to the request
         foreach ($this->cookies as $cookie) {
             if (!$cookie->isExpired() &&
                 (!$cookie->getSecure() || $scheme === 'https')
