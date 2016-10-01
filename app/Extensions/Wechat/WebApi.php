@@ -42,7 +42,12 @@ class WebApi
     public function __construct()
     {
         // important, don't allow auto redirect
-        $this->client = new Client(['cookies' => new CookieJar(), 'allow_redirects' => false, 'debug' => true]);
+        $this->client = new Client([
+            'cookies' => new CookieJar(),
+            'allow_redirects' => false,
+            'http_errors' => false,
+            'debug' => true,
+        ]);
     }
 
     public function run()
@@ -98,7 +103,7 @@ class WebApi
         }
     }
 
-    protected function request($method, $uri, array $options = [])
+    protected function request($method, $uri, array $options = [], $retry = 3)
     {
         $default = [
             'headers' => [
@@ -107,13 +112,21 @@ class WebApi
         ];
 
         $options = array_replace_recursive($default, $options);
-        $response = $this->client->request($method, $uri, $options);
 
-        if (! in_array($response->getStatusCode(), ['200', '301', '302'])) {
-            throw new Exception('Request Error');
+        // enable retry
+        while ($retry--) {
+            $response = $this->client->request($method, $uri, $options);
+
+            if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 400) {
+                if ($retry > 0) {
+                    continue;
+                }
+                Log::error('request error after tries',  $response->getBody()->getMetadata());
+                throw new Exception('request error after tries');
+            } else {
+                return $response->getBody()->getContents();
+            }
         }
-
-        return $response->getBody()->getContents();
     }
 
     /**
