@@ -33,32 +33,38 @@ class WebApi
      * 用户通讯录
      * @var Contact
      */
-    protected $contact = [];
+    protected $contact;
 
-    public function __construct(SyncKey $syncKey)
+    public function __construct()
     {
         // important, don't allow auto redirect
         $this->client = new Client(['cookies' => new CookieJar(), 'allow_redirects' => false]);
-        $this->syncKey = $syncKey;
     }
 
     public function run()
     {
-        while (true) {
+        $is_login = false;
+        while (! $is_login) {
             $uuid = $this->getUUID();
             $qrcode_login_url = $this->getQRCode($uuid);
 
             Storage::put('wechat/qrcode.png', file_get_contents($qrcode_login_url));
 
-            while (true) {
-                if ($login_info = $this->loginListen($uuid)) {
-                    $this->loginInit();
-                    $this->statusNotify();
-                    $this->getContact();
-                    $this->getBatchGroupMembers();
+            while (! $this->loginListen($uuid)) {
+                $this->loginInit();
+                $this->statusNotify();
+                $this->getContact();
+                $this->getBatchGroupMembers();
 
-                    while (true) {
-                        $check_info = $this->syncCheck();
+                while (true) {
+                    $check_status = $this->syncCheck();
+                    switch ($check_status) {
+                        case SyncCheckStatus::NewMessage:
+
+                            break;
+                        case SyncCheckStatus::Fail:
+
+                            break;
                     }
                 }
             }
@@ -158,7 +164,7 @@ class WebApi
     /**
      * 监听用户扫码登录
      * @param $uuid
-     * @return null|string 成功会返回redirect_uri，否则返回null
+     * @return boolean is_success
      * @throws Exception
      */
     public function loginListen($uuid)
@@ -173,18 +179,16 @@ class WebApi
             ]
         ]);
 
-        Log::info('response ' . $response);
-
         preg_match('|window.code=(\d+);|', $response, $matches);
 
         if (empty($matches) || count($matches) != 2) {
-            return null;
+            return false;
         }
 
         $code = intval($matches[1]);
 
         if ($code != 200) {
-            return null;
+            return false;
         }
 
         preg_match('|window.redirect_uri="(\S+?)";|', $response, $matches);
@@ -201,10 +205,10 @@ class WebApi
 
         $info = simplexml_load_string($response);
         if ($info && ($info = (array)$info) && $info['ret'] == 0) {
-            return array_only($info, ['skey', 'wxsid', 'wxuin', 'pass_ticket']);
+            $this->loginInfo = array_only($info, ['skey', 'wxsid', 'wxuin', 'pass_ticket']);
+            return true;
         }
-
-        return null;
+        return false;
     }
 
     public function loginInit()
@@ -230,7 +234,7 @@ class WebApi
             throw new Exception('webwxinit fail');
         }
 
-        $this->syncKey->refresh(array_get($content, 'SyncKey', []));
+        $this->syncKey = new SyncKey(array_get($content, 'SyncKey', []));
 
         $this->user = array_get($content, 'User', []);
 
@@ -266,7 +270,7 @@ class WebApi
 
     /**
      * syncCheck
-     * @return mixed {retcode:"xxx", selector:"xxx"}
+     * @return int check status
      * @throws Exception
      */
     public function syncCheck()
@@ -289,7 +293,23 @@ class WebApi
             throw new Exception('synccheck response parse error');
         }
 
-        return json_decode($matches[1], true);
+        $info = json_decode($matches[1], true);
+
+        if (intval($info['retcode']) != 0) {
+            return SyncCheckStatus::Fail;
+        }
+
+        $selector = intval($info['selector']);
+        if ($selector == 0) {
+            return SyncCheckStatus::Normal;
+        } else if ($selector == 2) {
+            return SyncCheckStatus::NewMessage;
+        } else if ($selector == 7) {
+            return SyncCheckStatus::NewJoin;
+        } else {
+            Log::warning('unrecognized synccheck selector', $info);
+            return SyncCheckStatus::Unknown;
+        }
     }
 
     public function syncDetail()
