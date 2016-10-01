@@ -350,7 +350,7 @@ class WebApi
                [
                    'BaseRequest' => $this->getBaseRequest(),
                    'SyncKey' => $this->syncKey->getData(),
-                   'rr' => ~$this->getReverseTimeStamp(),
+                   'rr' => $this->getReverseTimeStamp(),
                ]
            )
         ]);
