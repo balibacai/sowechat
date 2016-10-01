@@ -17,7 +17,7 @@ class WebApi
     public function __construct()
     {
         // important, don't allow auto redirect
-        $this->client = new Client(['cookies' => true, 'allow_redirects' => false, 'debug' => true]);
+        $this->client = new Client(['cookies' => new CookieJar(), 'allow_redirects' => false]);
     }
 
     protected function request($method, $uri, array $options = [])
@@ -135,8 +135,8 @@ class WebApi
 
     public function loginInit($login_info)
     {
-        $url = sprintf('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=-%d&pass_ticket=%s',
-            strtotime('now') + 578113647, $login_info['pass_ticket']);
+        $url = sprintf('https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=%d&pass_ticket=%s',
+            $this->getTimeStamp(), $login_info['pass_ticket']);
 
         $response = $this->request('POST', $url, [
             'headers' => [
@@ -153,6 +153,12 @@ class WebApi
             ])
         ]);
 
-        dd(json_decode($response, true));
+        $content = json_decode($response, true);
+
+        if (! $content && array_get($content, 'BaseResponse.Ret', 1100) !== 0) {
+            throw new Exception('webwxinit fail');
+        }
+
+        return $content;
     }
 }
