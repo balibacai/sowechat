@@ -505,18 +505,17 @@ class WebApi
     public function receiveMessage($messages)
     {
         foreach ($messages as $message) {
+            $value = '';
             switch ($message['MsgType']) {
                 case MessageType::Text:
                 case MessageType::LinkShare:
-                    $content = $message['Content'];
-                    Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $content, $message));
+                    $value = $message['Content'];
                     break;
 
                 case MessageType::Image:
                 case MessageType::Voice:
                 case MessageType::Video:
-                    $file_path = $this->downloadMedia($message);
-                    Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $file_path, $message));
+                    $value = $this->downloadMedia($message);
                     break;
 
                 case MessageType::Init:
@@ -527,6 +526,9 @@ class WebApi
                     Log::info('other message type', $message);
                     break;
             }
+
+            // fire event
+            Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $value, $message));
         }
     }
 
@@ -550,12 +552,6 @@ class WebApi
                 $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice';
                 $suffix = 'mp3';
                 $path = 'wechat/voice/' . $message['MsgId'] . '.' . $suffix;
-                break;
-
-            case MessageType::Video:
-                $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo';
-                $suffix = 'mp4';
-                $path = 'wechat/video/' . $message['MsgId'] . '.' . $suffix;
                 break;
 
             default:
