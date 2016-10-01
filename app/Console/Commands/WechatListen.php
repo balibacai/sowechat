@@ -2,10 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Cache;
-use Storage;
-use App\Extensions\Wechat\WebApi;
 use Illuminate\Console\Command;
+use App\Extensions\Wechat\WebApi;
 
 class WechatListen extends Command
 {
@@ -48,18 +46,5 @@ class WechatListen extends Command
     public function handle()
     {
         $this->api->run();
-    }
-
-    protected function getUUID()
-    {
-        $key = 'wechat_login_uuid';
-        $uuid = Cache::get($key);
-
-        if (empty($uuid)) {
-            $uuid = $this->api->getUUID();
-            Cache::add($key, $uuid, 3);
-        }
-
-        return $uuid;
     }
 }

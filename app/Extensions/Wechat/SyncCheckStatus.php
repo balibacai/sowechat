@@ -2,7 +2,7 @@
 
 namespace App\Extensions\Wechat;
 
-class SyncCheckStatus extends \SplEnum
+class SyncCheckStatus
 {
     const Normal = 0;
     const Fail = 1;

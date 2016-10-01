@@ -2,7 +2,7 @@
 
 namespace App\Extensions\Wechat;
 
-class MessageType extends \SplEnum
+class MessageType
 {
     const Text = 1;
     const Voice = 34;

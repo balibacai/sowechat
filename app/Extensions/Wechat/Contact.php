@@ -14,7 +14,7 @@ class Contact
         foreach($data as $item) {
             if ($item['VerifyFlag'] == 8) {
                 $this->public[] = $item;
-            } else if (starts_with($item, '@@')) {
+            } else if (starts_with($item['UserName'], '@@')) {
                 $this->groups[] = $item;
             } else {
                 $this->friends[] = $item;
@@ -29,7 +29,7 @@ class Contact
 
     public function getGroups()
     {
-        return $this->getGroups();
+        return $this->groups;
     }
 
     public function getPublic()

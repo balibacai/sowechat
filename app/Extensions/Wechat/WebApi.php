@@ -4,6 +4,7 @@ namespace App\Extensions\Wechat;
 
 use Log;
 use Event;
+use Cache;
 use Storage;
 use Exception;
 use GuzzleHttp\Client;
@@ -41,43 +42,53 @@ class WebApi
     public function __construct()
     {
         // important, don't allow auto redirect
-        $this->client = new Client(['cookies' => new CookieJar(), 'allow_redirects' => false]);
+        $this->client = new Client(['cookies' => new CookieJar(), 'allow_redirects' => false, 'debug' => true]);
     }
 
     public function run()
     {
         while (true) {
             try {
-                $uuid = $this->getUUID();
-                $qrcode_login_url = $this->getQRCode($uuid);
+                // TODO regenerate uuid when time exceed 5 min
+                if (($uuid = Cache::get('wechat_login_uuid')) == null) {
+                    $uuid = $this->getUUID();
+                    Storage::put('wechat/qrcode.png', file_get_contents($this->getQRCode($uuid)));
+                    Cache::put('wechat_login_uuid', $uuid, 5);
+                }
 
-                Storage::put('wechat/qrcode.png', file_get_contents($qrcode_login_url));
+                // wait until user login
+                while (! $this->loginListen($uuid));
 
-                while (! $this->loginListen($uuid)) {
-                    $this->loginInit();
-                    $this->statusNotify();
-                    $this->getContact();
-                    $this->getBatchGroupMembers();
+                $this->loginInit();
+                $this->statusNotify();
+                $this->getContact();
+                $this->getBatchGroupMembers();
 
-                    while (true) {
-                        $check_status = $this->syncCheck();
-                        switch ($check_status) {
-                            case SyncCheckStatus::NewMessage:
-                                $detail = $this->syncDetail();
-                                if ($detail['AddMsgCount'] > 0) {
-                                    $this->receiveMessage($detail['AddMsgList']);
-                                }
-                                if ($detail['DelContactCount'] > 0) {
-                                    Log::info('contact delete', $detail['DelContactList']);
-                                }
-                                if ($detail['ModContactCount'] > 0) {
-                                    Log::info('contact changed', $detail['ModContactList']);
-                                }
-                                break;
-                            case SyncCheckStatus::Fail:
-                                throw new Exception('lost user');
-                                break;
-                        }
+                while (true) {
+                    $check_status = $this->syncCheck();
+                    switch ($check_status) {
+                        case SyncCheckStatus::NewMessage:
+                            Log::info('new message');
+                            $detail = $this->syncDetail();
+                            if ($detail['AddMsgCount'] > 0) {
+                                $this->receiveMessage($detail['AddMsgList']);
+                            }
+                            if ($detail['DelContactCount'] > 0) {
+                                Log::info('contact delete', $detail['DelContactList']);
+                            }
+                            if ($detail['ModContactCount'] > 0) {
+                                Log::info('contact changed', $detail['ModContactList']);
+                            }
+                            break;
+
+                        case SyncCheckStatus::Normal:
+                            Log::info('no message');
+                            sleep(5);
+                            break;
+
+                        case SyncCheckStatus::Fail:
+                            throw new Exception('lost user');
+                            break;
                     }
                 }
 
@@ -96,9 +107,6 @@ class WebApi
         ];
 
         $options = array_replace_recursive($default, $options);
-
-        Log::info('request headers', $options);
-
         $response = $this->client->request($method, $uri, $options);
 
         if (! in_array($response->getStatusCode(), ['200', '301', '302'])) {
@@ -226,12 +234,13 @@ class WebApi
 
     public function loginConfirm($redirect_uri)
     {
+        Log::info('login confirm when user confirm login');
         $response = $this->request('GET', $redirect_uri);
 
         $info = simplexml_load_string($response);
         if ($info && ($info = (array)$info) && $info['ret'] == 0) {
             $this->loginInfo = array_only($info, ['skey', 'wxsid', 'wxuin', 'pass_ticket']);
-            Log::info('user login success');
+            Log::info('user login success', $this->loginInfo);
             return true;
         }
         return false;
@@ -264,6 +273,8 @@ class WebApi
         $this->syncKey = new SyncKey(array_get($content, 'SyncKey', []));
 
         $this->user = array_get($content, 'User', []);
+
+        Log::info('success get user info', $this->user);
 
         return $content;
     }
@@ -316,19 +327,18 @@ class WebApi
                 'synckey' => $this->syncKey->toString(),
             ]
         ]);
-
-        preg_match('|window.synccheck="(\S+?)";|', $response, $matches);
-        if (empty($matches) || count($matches) != 2) {
-            throw new Exception('synccheck response parse error');
+        preg_match('|window.synccheck={retcode:"(\d+)",selector:"(\d+)"}|', $response, $matches);
+        if (empty($matches) || count($matches) != 3) {
+            throw new Exception('synccheck parse error');
         }
 
-        $info = json_decode($matches[1], true);
+        $retcode = intval($matches[1]);
+        $selector = intval($matches[2]);
 
-        if (intval($info['retcode']) != 0) {
+        if ($retcode !== 0) {
             return SyncCheckStatus::Fail;
         }
 
-        $selector = intval($info['selector']);
         if ($selector == 0) {
             return SyncCheckStatus::Normal;
         } else if ($selector == 2) {
@@ -336,7 +346,7 @@ class WebApi
         } else if ($selector == 7) {
             return SyncCheckStatus::NewJoin;
         } else {
-            Log::warning('unrecognized synccheck selector', $info);
+            Log::warning('unrecognized synccheck selector', compact('retcode', 'selector'));
             return SyncCheckStatus::Unknown;
         }
     }
@@ -371,7 +381,7 @@ class WebApi
 
         $content = json_decode($response, true);
 
-        if (array_get($content, 'BaseResponse.Ret') !== '0') {
+        if (array_get($content, 'BaseResponse.Ret') !== 0) {
             throw new Exception('webwxsync error');
         }
 
@@ -386,7 +396,8 @@ class WebApi
      */
     public function getContact()
     {
-        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=en_US&r=1475322309689&seq=0&skey=@crypt_4597c5ec_d604537018e16998ac4e3dfab300fdde';
+        Log::info('get contact');
+        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact';
         $response = $this->request('GET', $url, [
             'query' => [
                 'lang' => 'zh_CN',
@@ -398,7 +409,7 @@ class WebApi
 
         $content = json_decode($response, true);
 
-        if (array_get($content, 'BaseResponse.Ret') !== '0') {
+        if (array_get($content, 'BaseResponse.Ret') !== 0) {
             throw new Exception('getcontact error');
         }
 
@@ -411,6 +422,7 @@ class WebApi
      */
     public function getBatchGroupMembers()
     {
+        Log::info('get group members');
         $chunk_size = 30;
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact';
 
@@ -434,7 +446,7 @@ class WebApi
 
             $content = json_decode($response, true);
 
-            if (array_get($content, 'BaseResponse.Ret') !== '0') {
+            if (array_get($content, 'BaseResponse.Ret') !== 0) {
                 throw new Exception('getcontact error');
             }
 
@@ -465,6 +477,10 @@ class WebApi
                     Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $file_path, $message));
                     break;
 
+                case MessageType::Init:
+                    $this->loginInit();
+                    break;
+
                 default:
                     Log::info('other message type', $message);
                     break;
@@ -480,23 +496,24 @@ class WebApi
      */
     public function downloadMedia($message)
     {
+        Log::info('downloadMedia', $message);
         switch ($message['MsgType']) {
             case MessageType::Image:
                 $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg';
                 $suffix = 'jpg';
-                $path = storage_path('wechat/image/' . $message['MsgId'] . $suffix);
+                $path = 'wechat/image/' . $message['MsgId'] . '.' . $suffix;
                 break;
 
             case MessageType::Voice:
                 $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice';
                 $suffix = 'mp3';
-                $path = storage_path('wechat/voice/' . $message['MsgId'] . $suffix);
+                $path = 'wechat/voice/' . $message['MsgId'] . '.' . $suffix;
                 break;
 
             case MessageType::Video:
                 $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo';
                 $suffix = 'mp4';
-                $path = storage_path('wechat/video/' . $message['MsgId'] . $suffix);
+                $path = 'wechat/video/' . $message['MsgId'] . '.' . $suffix;
                 break;
 
             default:
@@ -506,7 +523,7 @@ class WebApi
 
         $data = $this->request('GET', $url, [
             'query' => [
-                'msgid' => $message['MsgID'],
+                'msgid' => $message['MsgId'],
                 'skey' => $this->loginInfo['skey'],
             ],
             'on_headers' => function (ResponseInterface $response) use (& $suffix) {
