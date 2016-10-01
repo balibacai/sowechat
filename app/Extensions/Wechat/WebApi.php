@@ -169,16 +169,25 @@ class WebApi
             throw new Exception('get uuid parse error');
         }
 
-        return $matches[2];
+        $uuid = $matches[2];
+        Log::info('get new login uuid ' . $uuid);
+
+        return $uuid;
     }
 
+    /**
+     * get login qrcode link
+     * @param $uuid
+     * @return string
+     */
     public function getQRCode($uuid)
     {
+        Log::info('get qrcode link');
         return 'https://login.weixin.qq.com/qrcode/' . $uuid;
     }
 
     /**
-     * 监听用户扫码登录
+     * listening user to login
      * @param $uuid
      * @return boolean is_success
      * @throws Exception
@@ -222,6 +231,7 @@ class WebApi
         $info = simplexml_load_string($response);
         if ($info && ($info = (array)$info) && $info['ret'] == 0) {
             $this->loginInfo = array_only($info, ['skey', 'wxsid', 'wxuin', 'pass_ticket']);
+            Log::info('user login success');
             return true;
         }
         return false;
@@ -229,6 +239,7 @@ class WebApi
 
     public function loginInit()
     {
+        Log::info('login init');
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit';
 
         $response = $this->request('POST', $url, [
@@ -259,6 +270,7 @@ class WebApi
 
     public function statusNotify()
     {
+        Log::info('status notify');
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxstatusnotify';
         $response = $this->request('POST', $url, [
             'headers' => [
@@ -291,6 +303,7 @@ class WebApi
      */
     public function syncCheck()
     {
+        Log::info('sync check');
         $url = 'https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck';
         $response = $this->request('GET', $url, [
             'query' => [
@@ -335,6 +348,7 @@ class WebApi
      */
     public function syncDetail()
     {
+        Log::info('get detail when the method syncCheck got new message');
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync';
 
         $response = $this->request('POST', $url, [
