@@ -66,39 +66,48 @@ class WebApi
 
                 $this->loginInit();
                 $this->statusNotify();
-                $this->getContact();
-                $this->getBatchGroupMembers();
+
+                try {
+                    $this->getContact();
+                    $this->getBatchGroupMembers();
+                } catch (Exception $e) {
+                    Log::error('get contact error', array_slice($e->getTrace(), 0, 3));
+                }
 
                 while (true) {
                     $check_status = $this->syncCheck();
+
                     switch ($check_status) {
                         case SyncCheckStatus::NewMessage:
                             Log::info('new message');
-                            $detail = $this->syncDetail();
-                            if ($detail['AddMsgCount'] > 0) {
-                                $this->receiveMessage($detail['AddMsgList']);
-                            }
-                            if ($detail['DelContactCount'] > 0) {
-                                Log::info('contact delete', $detail['DelContactList']);
-                            }
-                            if ($detail['ModContactCount'] > 0) {
-                                Log::info('contact changed', $detail['ModContactList']);
+                            try {
+                                $detail = $this->syncDetail();
+                                if ($detail['AddMsgCount'] > 0) {
+                                    $this->receiveMessage($detail['AddMsgList']);
+                                }
+                                if ($detail['DelContactCount'] > 0) {
+                                    Log::info('contact delete', $detail['DelContactList']);
+                                }
+                                if ($detail['ModContactCount'] > 0) {
+                                    Log::info('contact changed', $detail['ModContactList']);
+                                }
+                            } catch (Exception $e) {
+                                Log::error('get contact error', array_slice($e->getTrace(), 0, 3));
                             }
                             break;
 
                         case SyncCheckStatus::Normal:
                             Log::info('no message');
-                            sleep(5);
                             break;
 
                         case SyncCheckStatus::Fail:
-                            throw new Exception('lost user');
+                            throw new Exception('lost user, please relogin');
                             break;
                     }
-                }
 
+                }
             } catch (Exception $e) {
-                Log::error($e->getMessage());
+                Log::error($e->getMessage(), array_slice($e->getTrace(), 0, 3));
             }
         }
     }
