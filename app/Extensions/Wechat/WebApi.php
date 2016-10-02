@@ -545,7 +545,10 @@ class WebApi
                     break;
 
                 case MessageType::LinkShare:
-                    $value = $message['Content'];
+                    $xml = str_replace('<br/>', '', htmlspecialchars_decode($message['Content']));
+                    $xml = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
+                    $data = json_decode(json_encode($xml), true);
+                    $value = json_encode(array_only($data['appmsg'], ['title', 'des', 'url']), JSON_UNESCAPED_UNICODE);
                     break;
 
                 case MessageType::Image:
