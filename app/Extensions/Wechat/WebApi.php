@@ -75,54 +75,78 @@ class WebApi
 
                 } while (! $this->loginListen($uuid));
 
-                $this->loginInit();
-                $this->statusNotify();
+                while ($this->reload());
 
-                // get contact
-                try {
-                    $this->getContact();
-                    $this->getBatchGroupMembers();
-                } catch (Exception $e) {
-                    Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
-                }
-
-                // message listen
-                while (true) {
-                    $check_status = $this->syncCheck();
-
-                    switch ($check_status) {
-                        case SyncCheckStatus::NewMessage:
-                            Log::info('new message');
-                            try {
-                                $detail = $this->syncDetail();
-                                if ($detail['AddMsgCount'] > 0) {
-                                    $this->receiveMessage($detail['AddMsgList']);
-                                }
-                                if ($detail['DelContactCount'] > 0) {
-                                    Log::info('contact delete', $detail['DelContactList']);
-                                }
-                                if ($detail['ModContactCount'] > 0) {
-                                    Log::info('contact changed', $detail['ModContactList']);
-                                }
-                            } catch (Exception $e) {
-                                Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
-                            }
-                            break;
-
-                        case SyncCheckStatus::Normal:
-                            Log::info('no message');
-                            break;
-
-                        case SyncCheckStatus::Fail:
-                            throw new Exception('lost user, please relogin');
-                            break;
-                    }
-
-                }
             } catch (Exception $e) {
                 Log::error($e->getMessage(), array_slice($e->getTrace(), 0, 5));
             }
         }
+    }
+
+    /**
+     * reload the whole page (first init when login or when too many requests at one time)
+     * @return bool $need_reload
+     * @throws Exception
+     */
+    protected function reload()
+    {
+        $need_reload = false;
+
+        $this->loginInit();
+        $this->statusNotify();
+
+        // get contact
+        try {
+            $this->getContact();
+            $this->getBatchGroupMembers();
+        } catch (Exception $e) {
+            Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
+        }
+
+        // message listen
+        while (true) {
+            // if too many request in 1 min, sleep some seconds
+            $max_requests = 10;
+            if ($this->limiter->hit('synccheck') && $this->limiter->tooManyAttempts('synccheck', $max_requests, 0.5)) {
+                Log::warning('too many request in 1 min, sleep some seconds and reload page');
+                $this->limiter->clear('synccheck');
+                sleep(5);
+                $need_reload =true;
+                break;
+            }
+
+            $check_status = $this->syncCheck();
+
+            switch ($check_status) {
+                case SyncCheckStatus::NewMessage:
+                    Log::info('new message');
+                    try {
+                        $detail = $this->syncDetail();
+                        if ($detail['AddMsgCount'] > 0) {
+                            $this->receiveMessage($detail['AddMsgList']);
+                        }
+                        if ($detail['DelContactCount'] > 0) {
+                            Log::info('contact delete', $detail['DelContactList']);
+                        }
+                        if ($detail['ModContactCount'] > 0) {
+                            Log::info('contact changed', $detail['ModContactList']);
+                        }
+                    } catch (Exception $e) {
+                        Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
+                    }
+                    break;
+
+                case SyncCheckStatus::Normal:
+                    Log::info('no message');
+                    break;
+
+                case SyncCheckStatus::Fail:
+                    throw new Exception('lost user, please relogin');
+                    break;
+            }
+        }
+
+        return $need_reload;
     }
 
     protected function request($method, $uri, array $options = [], $retry = 3)
@@ -372,13 +396,6 @@ class WebApi
 
         if ($retcode !== 0) {
             return SyncCheckStatus::Fail;
-        }
-
-        // if too many request in 1 min, sleep some seconds
-        $max_requests = 10;
-        if ($this->limiter->hit('synccheck') && $this->limiter->tooManyAttempts('synccheck', $max_requests, 1)) {
-            Log::warning('too many request in 1 min, sleep some seconds');
-            sleep(10);
         }
 
         if ($selector == 0) {
