@@ -22,4 +22,20 @@ class MessageType
     const System = 10000;
     const Revoke = 10002;
     const Unknown = -1;
+
+    /**
+     * convert enum value to string
+     * @param int $value
+     * @return string
+     */
+    public static function getType($value)
+    {
+        static $names = null;
+        if (! $names) {
+            $names = array_flip((new \ReflectionClass(static::class))->getConstants());
+        }
+
+        return strtolower(array_get($names, $value, 'unknown'));
+    }
+
 }

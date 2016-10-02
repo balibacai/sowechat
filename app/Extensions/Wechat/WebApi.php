@@ -66,6 +66,12 @@ class WebApi
             try {
                 // wait until user login
                 do {
+                    if ($this->tooManyAttempts('synccheck')) {
+                        Cache::forget('wechat_login_uuid');
+                        sleep(5);
+                        break;
+                    }
+
                     // regenerate uuid when time exceed 5 min
                     if (($uuid = Cache::get('wechat_login_uuid')) == null) {
                         $uuid = $this->getUUID();
@@ -105,13 +111,10 @@ class WebApi
 
         // message listen
         while (true) {
-            // if too many request in 1 min, sleep some seconds
-            $max_requests = 10;
-            if ($this->limiter->hit('synccheck') && $this->limiter->tooManyAttempts('synccheck', $max_requests, 0.5)) {
-                Log::warning('too many request in 1 min, sleep some seconds and reload page');
-                $this->limiter->clear('synccheck');
+
+            if ($this->tooManyAttempts('synccheck')) {
                 sleep(5);
-                $need_reload =true;
+                $need_reload = true;
                 break;
             }
 
@@ -147,6 +150,19 @@ class WebApi
         }
 
         return $need_reload;
+    }
+
+    protected function tooManyAttempts($key)
+    {
+        // if too many request in 1 min, sleep some seconds
+        $max_requests = 10;
+        if ($this->limiter->hit($key) && $this->limiter->tooManyAttempts($key, $max_requests, 0.5)) {
+            Log::warning('too many request in 1 min, sleep some seconds and reload page');
+            $this->limiter->clear('synccheck');
+            return true;
+        }
+
+        return false;
     }
 
     protected function request($method, $uri, array $options = [], $retry = 3)
@@ -525,6 +541,9 @@ class WebApi
             $value = '';
             switch ($message['MsgType']) {
                 case MessageType::Text:
+                    $value = $message['Content'];
+                    break;
+
                 case MessageType::LinkShare:
                     $value = $message['Content'];
                     break;
@@ -544,6 +563,10 @@ class WebApi
                     break;
             }
 
+            Log::info('success get new message', [
+                'type' => MessageType::getType($message['MsgType']),
+                'value' => $value,
+            ]);
             // fire event
             Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $value, $message));
         }
