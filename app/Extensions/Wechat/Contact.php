@@ -49,4 +49,29 @@ class Contact
     {
         $this->groupMembers[$groupName] = $members;
     }
+
+    /**
+     * get contact user info
+     * @param $userName
+     * @param null|array $attributes
+     * @return array|mixed
+     */
+    public function getUser($userName, $attributes = null)
+    {
+        if ($userName === null) {
+            return null;
+        }
+
+        $info = array_get($this->friends, $userName,
+            array_get($this->groups, $userName),
+            array_get($this->public, $userName), []);
+
+        if ($attributes === null) {
+            return $info;
+        } else if (is_array($attributes)) {
+            return array_only($info, $attributes);
+        } else {
+            return array_get($info, $attributes);
+        }
+    }
 }

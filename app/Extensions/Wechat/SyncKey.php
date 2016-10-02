@@ -22,7 +22,7 @@ class SyncKey
     }
 
     /**
-     * 转换为字符串形式, eg. 1_651014297|2_651014885|...
+     * convert to request params string, eg. 1_651014297|2_651014885|...
      * @return string
      */
     public function toString()

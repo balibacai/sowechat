@@ -93,7 +93,7 @@ class WebApi
                 while ($this->reload());
 
             } catch (Exception $e) {
-                Log::error($e->getMessage(), array_slice($e->getTrace(), 0, 5));
+                Log::error($e->getMessage());
             }
         }
     }
@@ -115,7 +115,8 @@ class WebApi
             $this->getContact();
             $this->getBatchGroupMembers();
         } catch (Exception $e) {
-            Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
+            Log::error('get contact error' . $e->getMessage());
+            return true;
         }
 
         // message listen
@@ -127,7 +128,14 @@ class WebApi
                 break;
             }
 
-            $check_status = $this->syncCheck();
+            try {
+                $check_status = $this->syncCheck();
+                Log::info('synccheck status ' . SyncCheckStatus::getStatus($check_status));
+            } catch (Exception $e) {
+                // when synccheck error, reload page
+                $need_reload = true;
+                break;
+            }
 
             switch ($check_status) {
                 case SyncCheckStatus::NewMessage:
@@ -144,7 +152,7 @@ class WebApi
                             Log::info('contact changed', $detail['ModContactList']);
                         }
                     } catch (Exception $e) {
-                        Log::error('get contact error', array_slice($e->getTrace(), 0, 5));
+                        Log::error('get contact error ' . $e->getMessage());
                     }
                     break;
 
@@ -202,9 +210,14 @@ class WebApi
 
             if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 400) {
                 if ($retry > 0) {
+                    sleep(1);
                     continue;
                 }
-                Log::error('request error after tries',  $response->getBody()->getMetadata());
+                Log::error('request error after tries',  [
+                    'url' => $uri,
+                    'code' => $response->getStatusCode(),
+                    'body' => $response->getBody()->getContents(),
+                ]);
                 throw new Exception('request error after tries');
             } else {
                 return $response->getBody()->getContents();
@@ -589,9 +602,10 @@ class WebApi
             }
 
             Log::info('success get new message', [
-                'from' => $message['NickName'],
+                'from' => $this->contact->getUser(array_get($message, 'FromUserName'), 'NickName'),
                 'type' => MessageType::getType($message['MsgType']),
                 'value' => $value,
+                'raw_content' => $message['MsgType'] != MessageType::Init ? $message : '',
             ]);
 
             // fire event
