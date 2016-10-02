@@ -19,10 +19,12 @@ class WebApi
      * @var \GuzzleHttp\Client
      */
     protected $client;
+
     /**
      * @var array
      */
     protected $loginInfo = []; // ['skey', 'wxsid', 'wxuin', 'pass_ticket']
+
     /**
      * @var SyncKey
      */
@@ -46,14 +48,20 @@ class WebApi
      */
     protected $limiter;
 
-    public function __construct()
+    /**
+     * max request attempts in 0.5 min
+     * @var int
+     */
+    protected $maxAttempts = 10;
+
+    public function __construct($options = [])
     {
         // important, don't allow auto redirect
         $this->client = new Client([
             'cookies' => new CookieJar(),
             'allow_redirects' => false,
             'http_errors' => false,
-            'debug' => true,
+            'debug' => array_get($options, 'debug', false),
         ]);
 
         $this->limiter = app(RateLimiter::class);
@@ -153,19 +161,31 @@ class WebApi
         return $need_reload;
     }
 
+    /**
+     * check if has too many request in 0.5 min
+     * @param $key
+     * @return bool
+     */
     protected function tooManyAttempts($key)
     {
-        // if too many request in 1 min, sleep some seconds
-        $max_requests = 10;
-        if ($this->limiter->hit($key) && $this->limiter->tooManyAttempts($key, $max_requests, 0.5)) {
-            Log::warning('too many request in 1 min, sleep some seconds and reload page');
-            $this->limiter->clear('synccheck');
+        if ($this->limiter->hit($key) && $this->limiter->tooManyAttempts($key, $this->maxAttempts, 0.5)) {
+            Log::warning('too many request in 0.5 min, sleep some seconds and reload page');
+            $this->limiter->clear($key);
             return true;
         }
 
         return false;
     }
 
+    /**
+     * base request
+     * @param $method
+     * @param string $uri request url
+     * @param array $options request options
+     * @param int $retry retry_times
+     * @return string plain/text
+     * @throws Exception
+     */
     protected function request($method, $uri, array $options = [], $retry = 3)
     {
         $default = [
@@ -193,7 +213,7 @@ class WebApi
     }
 
     /**
-     * 生成当前时间戳（毫秒）
+     * get current timestamp with milliseconds
      * @return int
      */
     protected function getTimeStamp()
@@ -202,6 +222,7 @@ class WebApi
     }
 
     /**
+     * simulate js ~new Date
      * 当前时间取反 (获取getTimeStamp低32位数据,然后去反操作)
      * @return int
      */
@@ -212,7 +233,7 @@ class WebApi
     }
 
     /**
-     * 获取设备id
+     * random device id
      * @return string
      */
     protected function getDeviceId()
@@ -231,7 +252,7 @@ class WebApi
     }
 
     /**
-     * 返回uuid
+     * return login uuid
      * @return string uuid
      * @throws Exception
      */
@@ -568,9 +589,11 @@ class WebApi
             }
 
             Log::info('success get new message', [
+                'from' => $message['NickName'],
                 'type' => MessageType::getType($message['MsgType']),
                 'value' => $value,
             ]);
+
             // fire event
             Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $value, $message));
         }
