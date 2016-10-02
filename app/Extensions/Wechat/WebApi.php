@@ -35,7 +35,7 @@ class WebApi
     protected $user = [];
 
     /**
-     * 用户通讯录
+     * user contact
      * @var Contact
      */
     protected $contact;
@@ -58,6 +58,7 @@ class WebApi
 
         $this->limiter = app(RateLimiter::class);
         $this->limiter->clear('synccheck');
+        $this->limiter->clear('wechat_login');
     }
 
     public function run()
@@ -66,7 +67,7 @@ class WebApi
             try {
                 // wait until user login
                 do {
-                    if ($this->tooManyAttempts('synccheck')) {
+                    if ($this->tooManyAttempts('wechat_login')) {
                         Cache::forget('wechat_login_uuid');
                         sleep(5);
                         break;
