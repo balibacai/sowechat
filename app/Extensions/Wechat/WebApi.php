@@ -89,9 +89,11 @@ class WebApi
 
     public function run()
     {
+        $has_login = empty($this->loginInfo);
+
         while (true) {
             try {
-                if (empty($this->loginInfo)) {
+                if (! $has_login) {
                     // wait until user login
                     do {
                         if ($this->tooManyAttempts('wechat_login')) {
@@ -113,6 +115,8 @@ class WebApi
                 while ($this->reload());
 
             } catch (Exception $e) {
+                // need relogin
+                $has_login = false;
                 Log::error($e->getMessage());
             }
         }
