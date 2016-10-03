@@ -184,7 +184,9 @@ class WebApi
                     Log::info('new message come');
                     try {
                         $detail = $this->syncDetail();
+                        $has_new = false;
                         if ($detail['AddMsgCount'] > 0) {
+                            $has_new = true;
                             $this->receiveMessage($detail['AddMsgList']);
                         }
                         if ($detail['DelContactCount'] > 0) {
@@ -192,6 +194,10 @@ class WebApi
                         }
                         if ($detail['ModContactCount'] > 0) {
                             Log::info('contact changed', $detail['ModContactList']);
+                        }
+
+                        if (! $has_new) {
+                            $this->loginInit();
                         }
                     } catch (Exception $e) {
                         Log::error('get contact error ' . $e->getMessage());
@@ -995,7 +1001,7 @@ class WebApi
             'user' => $this->user,
             'fileIndex' => $this->fileIndex,
             'loginInfo' => $this->loginInfo,
-            'clientOptions' => $this->clientOptions,
+            'clientOptions' => array_except($this->clientOptions, 'debug'),
         ];
 
         Storage::put('wechat/core_state.txt', serialize($core_state));
@@ -1003,13 +1009,14 @@ class WebApi
 
     /**
      * get new instance from stored state
+     * @param bool $debug
      * @return WebApi
      */
-    public static function restoreState()
+    public static function restoreState($debug = false)
     {
         if (Storage::exists('wechat/core_state.txt')) {
             $core_state = unserialize(Storage::get('wechat/core_state.txt'));
-            return new WebApi($core_state['clientOptions'], array_except($core_state, 'clientOptions'));
+            return new WebApi(['debug' => $debug] + $core_state['clientOptions'], array_except($core_state, 'clientOptions'));
         } else {
             return new WebApi();
         }
