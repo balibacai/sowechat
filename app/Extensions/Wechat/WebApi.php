@@ -21,6 +21,12 @@ class WebApi
     protected $client;
 
     /**
+     * client options
+     * @var array
+     */
+    protected $clientOptions = [];
+
+    /**
      * @var array
      */
     protected $loginInfo = []; // ['skey', 'wxsid', 'wxuin', 'pass_ticket']
@@ -54,15 +60,25 @@ class WebApi
      */
     protected $maxAttempts = 10;
 
-    public function __construct($options = [])
+    /**
+     * WebApi constructor.
+     * @param array $options client options
+     * @param array $loginInfo last login info
+     * @param array $user last login user
+     */
+    public function __construct($options = [], $loginInfo = [], $user = [])
     {
         // important, don't allow auto redirect
-        $this->client = new Client([
+        $this->clientOptions = array_replace_recursive([
             'cookies' => new CookieJar(),
             'allow_redirects' => false,
             'http_errors' => false,
-            'debug' => array_get($options, 'debug', false),
-        ]);
+            'debug' => false,
+        ], $options);
+
+        $this->client = new Client($this->clientOptions);
+        $this->loginInfo = $loginInfo;
+        $this->user = $user;
 
         $this->limiter = app(RateLimiter::class);
         $this->limiter->clear('synccheck');
@@ -380,8 +396,8 @@ class WebApi
             throw new Exception('webwxinit fail');
         }
 
+        $this->loginInfo['Skey'] = empty($content['Skey']) ? $this->loginInfo['Skey'] : $content['Skey'];
         $this->syncKey = new SyncKey(array_get($content, 'SyncKey', []));
-
         $this->user = array_get($content, 'User', []);
 
         Log::info('success get user info', $this->user);
@@ -653,5 +669,29 @@ class WebApi
         Storage::put($path, $data);
 
         return $path;
+    }
+
+    /**
+     * save current state
+     */
+    public function saveState()
+    {
+        $core_state = [
+            'user' => $this->user,
+            'loginInfo' => $this->loginInfo,
+            'clientOptions' => $this->clientOptions,
+        ];
+
+        Storage::put('wechat/core_state.txt', serialize($core_state));
+    }
+
+    /**
+     * get new instance from stored state
+     * @return WebApi
+     */
+    public static function restoreState()
+    {
+        $core_state = unserialize(Storage::get('wechat/core_state.txt'));
+        return new WebApi($core_state['clientOptions'], $core_state['loginInfo'], $core_state['user']);
     }
 }
