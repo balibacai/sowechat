@@ -134,13 +134,20 @@ class WebApi
         $this->loginInit();
         $this->statusNotify();
 
+        // save state to file
+        $this->saveState();
+
         // get contact
-        try {
-            $this->getContact();
-            $this->getBatchGroupMembers();
-        } catch (Exception $e) {
-            Log::error('get contact error' . $e->getMessage());
-            return true;
+        static $init_contact = false;
+        if (! $init_contact) {
+            try {
+                $this->getContact();
+                $this->getBatchGroupMembers();
+                $init_contact = true;
+            } catch (Exception $e) {
+                Log::error('get contact error' . $e->getMessage());
+                return true;
+            }
         }
 
         // message listen
@@ -404,7 +411,7 @@ class WebApi
             throw new Exception('webwxinit fail');
         }
 
-        $this->loginInfo['Skey'] = empty($content['Skey']) ? $this->loginInfo['Skey'] : $content['Skey'];
+        $this->loginInfo['skey'] = empty($content['Skey']) ? $this->loginInfo['skey'] : $content['Skey'];
         $this->syncKey = new SyncKey(array_get($content, 'SyncKey', []));
         $this->user = array_get($content, 'User', []);
 
