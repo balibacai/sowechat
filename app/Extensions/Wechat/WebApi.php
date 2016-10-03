@@ -91,22 +91,24 @@ class WebApi
     {
         while (true) {
             try {
-                // wait until user login
-                do {
-                    if ($this->tooManyAttempts('wechat_login')) {
-                        Cache::forget('wechat_login_uuid');
-                        sleep(5);
-                        break;
-                    }
+                if (empty($this->loginInfo)) {
+                    // wait until user login
+                    do {
+                        if ($this->tooManyAttempts('wechat_login')) {
+                            Cache::forget('wechat_login_uuid');
+                            sleep(5);
+                            break;
+                        }
 
-                    // regenerate uuid when time exceed 5 min
-                    if (($uuid = Cache::get('wechat_login_uuid')) == null) {
-                        $uuid = $this->getUUID();
-                        Storage::put('wechat/qrcode.png', file_get_contents($this->getQRCode($uuid)));
-                        Cache::put('wechat_login_uuid', $uuid, 5);
-                    }
+                        // regenerate uuid when time exceed 5 min
+                        if (($uuid = Cache::get('wechat_login_uuid')) == null) {
+                            $uuid = $this->getUUID();
+                            Storage::put('wechat/qrcode.png', file_get_contents($this->getQRCode($uuid)));
+                            Cache::put('wechat_login_uuid', $uuid, 5);
+                        }
 
-                } while (! $this->loginListen($uuid));
+                    } while (! $this->loginListen($uuid));
+                }
 
                 while ($this->reload());
 
