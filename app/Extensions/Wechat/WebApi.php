@@ -78,6 +78,7 @@ class WebApi
         $this->clientOptions = array_replace_recursive([
             'cookies' => new CookieJar(),
             'allow_redirects' => false,
+            'connect_timeout' => 30,
             'http_errors' => false,
             'debug' => false,
         ], $clientOptions);
@@ -288,11 +289,11 @@ class WebApi
 
     /**
      * get msgId when sending msg
-     * @return int
+     * @return string
      */
     protected function getClientMessageID()
     {
-        return $this->getTimeStamp() * 1000 + random_int(1, 999);
+        return $this->getTimeStamp() . '' . random_int(1000, 9999);
     }
 
     /**
@@ -897,17 +898,13 @@ class WebApi
                         'ToUserName' => $to,
                         'LocalID' => $msg_id,
                         'Type' => 6,
-                        'Content' =>
-                            sprintf("<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''><title>%s</title><des></des><action></action>
-                            <type>%d</type><content></content><url></url><lowurl></lowurl><appattach><totallen>%d</totallen>
-                            <attachid></attachid><fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>",
-                                $file->getFilename(), 6, $file->getSize(), $file->getExtension()),
-                    ]
+                        'Content' => sprintf("<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''><title>%s</title><des></des><action></action><type>%d</type><content></content><url></url><lowurl></lowurl><appattach><totallen>%d</totallen><attachid>%s</attachid><fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>",
+                            $file->getFilename(), 6, $file->getSize(), $this->uploadMedia($from, $to, $file_path), $file->getExtension()),
+                    ],
                 ]),
             ]);
 
             $content = json_decode($response, true);
-
             if (array_get($content, 'BaseResponse.Ret') !== 0) {
                 return false;
             }
