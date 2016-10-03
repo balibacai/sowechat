@@ -12,7 +12,8 @@ class WechatListen extends Command
      *
      * @var string
      */
-    protected $signature = 'wechat:listen';
+    protected $signature = 'wechat:listen
+                            {--new : start a new login}';
 
     /**
      * The console command description.
@@ -33,7 +34,6 @@ class WechatListen extends Command
      */
     public function __construct()
     {
-        $this->api = WebApi::restoreState();
         parent::__construct();
     }
 
@@ -44,6 +44,11 @@ class WechatListen extends Command
      */
     public function handle()
     {
+        if ($this->option('new')) {
+            $this->api = new WebApi();
+        } else {
+            $this->api = WebApi::restoreState();
+        }
         $this->api->run();
     }
 }
