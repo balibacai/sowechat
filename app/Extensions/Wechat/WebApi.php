@@ -76,6 +76,8 @@ class WebApi
             'debug' => false,
         ], $options);
 
+        // in fact, if set login cookies, the loginInfo can be got from it,
+        // and user can be restored using webwxinit api
         $this->client = new Client($this->clientOptions);
         $this->loginInfo = $loginInfo;
         $this->user = $user;
