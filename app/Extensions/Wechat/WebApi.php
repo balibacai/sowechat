@@ -593,7 +593,7 @@ class WebApi
                     break;
 
                 case MessageType::Init:
-                    $this->loginInit();
+                    // $this->loginInit();
                     break;
 
                 default:
