@@ -139,7 +139,7 @@ class WebApi
 
             switch ($check_status) {
                 case SyncCheckStatus::NewMessage:
-                    Log::info('new message');
+                    Log::info('new message come');
                     try {
                         $detail = $this->syncDetail();
                         if ($detail['AddMsgCount'] > 0) {
@@ -468,7 +468,7 @@ class WebApi
      */
     public function syncDetail()
     {
-        Log::info('get detail when the method syncCheck got new message');
+        Log::info('get detail');
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync';
 
         $response = $this->request('POST', $url, [
