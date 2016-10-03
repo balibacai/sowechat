@@ -8,6 +8,7 @@ use Cache;
 use Storage;
 use Exception;
 use GuzzleHttp\Client;
+use Illuminate\Http\File;
 use Illuminate\Cache\RateLimiter;
 use App\Events\WechatMessageEvent;
 use Psr\Http\Message\ResponseInterface;
@@ -59,6 +60,12 @@ class WebApi
      * @var int
      */
     protected $maxAttempts = 10;
+
+    /**
+     * increment file index
+     * @var int
+     */
+    protected $fileIndex = 0;
 
     /**
      * WebApi constructor.
@@ -277,12 +284,50 @@ class WebApi
     }
 
     /**
+     * get msgId when sending msg
+     * @return int
+     */
+    protected function getClientMessageID()
+    {
+        return $this->getTimeStamp() * 1000 + random_int(1, 999);
+    }
+
+    /**
+     * get upload file id
+     * @return string
+     */
+    protected function getFileID()
+    {
+        return 'WU_FILE_' . $this->fileIndex++;
+    }
+
+    /**
      * random device id
      * @return string
      */
     protected function getDeviceId()
     {
         return 'e' . random_int(100000000000000, 999999999999999);
+    }
+
+    /**
+     * get cookies
+     * @param null $name
+     * @return mixed
+     */
+    protected function getCookies($name = null)
+    {
+        $cookiejar = $this->client->getConfig('cookies');
+        $cookies = $cookiejar->toArray();
+        if ($name === null) {
+            return $cookies;
+        }
+
+        $cookie = array_first($cookies, function ($cookie) use ($name) {
+            return $cookie['Name'] == $name;
+        }, []);
+
+        return array_get($cookie, 'Value');
     }
 
     protected function getBaseRequest()
@@ -684,6 +729,214 @@ class WebApi
         Storage::put($path, $data);
 
         return $path;
+    }
+
+    /**
+     * send normal message
+     * @param $from
+     * @param $to
+     * @param $content
+     * @return bool
+     */
+    public function sendMessage($from, $to, $content)
+    {
+        try {
+            $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg';
+            $msg_id = $this->getClientMessageID();
+
+            $response = $this->request('POST', $url, [
+                'body' => [
+                    'BaseRequest' => $this->getBaseRequest(),
+                    'Msg' => [
+                        'ClientMsgId' => $msg_id,
+                        'FromUserName' => $from,
+                        'ToUserName' => $to,
+                        'LocalID' => $msg_id,
+                        'Type' => 1,
+                        'Content' => $content,
+                    ]
+                ]
+            ]);
+
+            $content = json_decode($response, true);
+
+            if (array_get($content, 'BaseResponse.Ret') !== 0) {
+                return false;
+            }
+
+            return true;
+        } catch (Exception $e) {
+            Log::error('send text error ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * send image && gif emotion
+     * @param $from
+     * @param $to
+     * @param $img_path
+     * @return bool
+     */
+    public function sendImage($from, $to, $img_path)
+    {
+        try {
+            $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg?fun=async&f=json';
+            $msg_id = $this->getClientMessageID();
+            $file = new File($img_path);
+            $ext = $file->getExtension();
+
+            if ($ext == 'gif') {
+                $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendemoticon?fun=sys';
+                $info = [
+                    'Type' => 47,
+                    'EmojiFlag' => 2,
+                ];
+            } else {
+                $info = [
+                    'Type' => 3,
+                ];
+            }
+
+            $response = $this->request('POST', $url, [
+                'body' => [
+                    'BaseRequest' => $this->getBaseRequest(),
+                    'Msg' => [
+                        'ClientMsgId' => $msg_id,
+                        'FromUserName' => $from,
+                        'ToUserName' => $to,
+                        'LocalID' => $msg_id,
+                        'MediaId' => $this->uploadMedia($from, $to, $img_path),
+                    ] + $info
+                ]
+            ]);
+
+            $content = json_decode($response, true);
+
+            if (array_get($content, 'BaseResponse.Ret') !== 0) {
+                return false;
+            }
+
+            return true;
+        } catch (Exception $e) {
+            Log::error('send image error ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * send file
+     * @param $from
+     * @param $to
+     * @param $file_path
+     * @return bool
+     */
+    public function sendFile($from, $to, $file_path)
+    {
+        try {
+            $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendappmsg?fun=async&f=json';
+            $msg_id = $this->getClientMessageID();
+            $file = new File($file_path);
+
+            $response = $this->request('POST', $url, [
+                'body' => [
+                    'BaseRequest' => $this->getBaseRequest(),
+                    'Msg' => [
+                        'ClientMsgId' => $msg_id,
+                        'FromUserName' => $from,
+                        'ToUserName' => $to,
+                        'LocalID' => $msg_id,
+                        'Type' => 6,
+                        'Content' =>
+                            sprintf("<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''><title>%s</title><des></des><action></action>
+                            <type>%d</type><content></content><url></url><lowurl></lowurl><appattach><totallen>%d</totallen>
+                            <attachid></attachid><fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>",
+                                $file->getFilename(), 6, $file->getSize(), $file->getExtension()),
+                    ]
+                ]
+            ]);
+
+            $content = json_decode($response, true);
+
+            if (array_get($content, 'BaseResponse.Ret') !== 0) {
+                return false;
+            }
+
+            return true;
+        } catch (Exception $e) {
+            Log::error('send file error ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function uploadMedia($from, $to, $file_path)
+    {
+        $url = 'https://file.wx2.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json';
+        $file = new File($file_path, true);
+
+        $response = $this->request('POST', $url, [
+            'multipart' => [
+                [
+                    'name' => 'id',
+                    'contents' => $this->getFileID(),
+                ],
+                [
+                    'name' => 'name',
+                    'contents' => $file->getFilename(),
+                ],
+                [
+                    'name' => 'type',
+                    'contents' => $file->getMimeType(),
+                ],
+                [
+                    'name' => 'lastModifiedDate',
+                    'contents' => date('D M d Y H:i:s GMT+0800 (CST)', $file->getMTime()),
+                ],
+                [
+                    'name' => 'size',
+                    'contents' => $file->getSize(),
+                ],
+                [
+                    'name' => 'mediatype',
+                    'contents' => str_contains($file->getMimeType(), 'image') ? 'pic' : 'doc',
+                ],
+                [
+                    'name' => 'filename',
+                    'contents' => fopen($file_path, 'r'),
+                ],
+                [
+                    'name' => 'uploadmediarequest',
+                    'contents' => json_encode([
+                        'UploadType' => 2,
+                        'BaseRequest' => $this->getBaseRequest(),
+                        'ClientMediaId' => $this->getTimeStamp(),
+                        'TotalLen' => $file->getSize(),
+                        'StartPos' => 0,
+                        'DataLen' => $file->getSize(),
+                        'MediaType' => 4,
+                        'FromUserName' => $from,
+                        'ToUserName' => $to,
+                        'FileMd5' => md5_file($file_path),
+                    ]),
+                ],
+                [
+                    'name' => 'webwx_data_ticket',
+                    'contents' => $this->getCookies('webwx_data_ticket') ?: 'undefined',
+                ],
+                [
+                    'name' => 'pass_ticket',
+                    'contents' => $this->getCookies('pass_ticket') ?: 'undefined',
+                ]
+            ]
+        ]);
+
+        $content = json_decode($response, true);
+
+        if (array_get($content, 'BaseResponse.Ret') !== 0) {
+            throw new Exception('upload media fail');
+        }
+
+        return array_get($content, 'MediaId');
     }
 
     /**
