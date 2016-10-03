@@ -69,11 +69,10 @@ class WebApi
 
     /**
      * WebApi constructor.
-     * @param array $options client options
-     * @param array $loginInfo last login info
-     * @param array $user last login user
+     * @param array $clientOptions client options
+     * @param array $options other options
      */
-    public function __construct($options = [], $loginInfo = [], $user = [])
+    public function __construct($clientOptions = [], $options = [])
     {
         // important, don't allow auto redirect
         $this->clientOptions = array_replace_recursive([
@@ -81,13 +80,17 @@ class WebApi
             'allow_redirects' => false,
             'http_errors' => false,
             'debug' => false,
-        ], $options);
+        ], $clientOptions);
 
         // in fact, if set login cookies, the loginInfo can be got from it,
         // and user can be restored using webwxinit api
         $this->client = new Client($this->clientOptions);
-        $this->loginInfo = $loginInfo;
-        $this->user = $user;
+        // for quick start
+        $this->loginInfo = array_get($options, 'loginInfo', []);
+        $this->user = array_get($options, 'user', []);
+
+        $this->fileIndex = array_get($options, 'fileIndex', 0);
+        $this->maxAttempts = array_get($options, 'maxAttempts', 10);
 
         $this->limiter = app(RateLimiter::class);
         $this->limiter->clear('synccheck');
@@ -946,6 +949,7 @@ class WebApi
     {
         $core_state = [
             'user' => $this->user,
+            'fileIndex' => $this->fileIndex,
             'loginInfo' => $this->loginInfo,
             'clientOptions' => $this->clientOptions,
         ];
@@ -961,7 +965,7 @@ class WebApi
     {
         if (Storage::exists('wechat/core_state.txt')) {
             $core_state = unserialize(Storage::get('wechat/core_state.txt'));
-            return new WebApi($core_state['clientOptions'], $core_state['loginInfo'], $core_state['user']);
+            return new WebApi($core_state['clientOptions'], array_except($core_state, 'clientOptions'));
         } else {
             return new WebApi();
         }
