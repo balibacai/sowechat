@@ -29,12 +29,11 @@ class WechatListen extends Command
     /**
      * Create a new command instance.
      *
-     * @param WebApi $api
      * @return void
      */
-    public function __construct(WebApi $api)
+    public function __construct()
     {
-        $this->api = $api;
+        $this->api = WebApi::restoreState();
         parent::__construct();
     }
 

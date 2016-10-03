@@ -89,7 +89,7 @@ class WebApi
 
     public function run()
     {
-        $has_login = empty($this->loginInfo);
+        $has_login = ! empty($this->loginInfo);
 
         while (true) {
             try {
@@ -706,7 +706,11 @@ class WebApi
      */
     public static function restoreState()
     {
-        $core_state = unserialize(Storage::get('wechat/core_state.txt'));
-        return new WebApi($core_state['clientOptions'], $core_state['loginInfo'], $core_state['user']);
+        if (Storage::exists('wechat/core_state.txt')) {
+            $core_state = unserialize(Storage::get('wechat/core_state.txt'));
+            return new WebApi($core_state['clientOptions'], $core_state['loginInfo'], $core_state['user']);
+        } else {
+            return new WebApi();
+        }
     }
 }
