@@ -13,11 +13,11 @@ class Contact
     {
         foreach($data as $item) {
             if ($item['VerifyFlag'] == 8) {
-                $this->public[] = $item;
+                $this->public[$item['UserName']] = array_only($item, ['NickName']);
             } else if (starts_with($item['UserName'], '@@')) {
-                $this->groups[] = $item;
+                $this->groups[$item['UserName']] = array_only($item, ['NickName']);
             } else {
-                $this->friends[] = $item;
+                $this->friends[$item['UserName']] = array_only($item, ['NickName']);
             }
         }
     }
@@ -47,7 +47,11 @@ class Contact
 
     public function setGroupMembers($groupName, $members)
     {
-        $this->groupMembers[$groupName] = $members;
+        $this->groupMembers[$groupName] = array_combine(array_pluck($members, 'UserName'),
+            array_map(function ($item) {
+                return array_only($item, ['NickName']);
+            }, $members)
+        );
     }
 
     /**
@@ -65,6 +69,27 @@ class Contact
         $info = array_get($this->friends, $userName,
             array_get($this->groups, $userName),
             array_get($this->public, $userName), []);
+
+        if ($attributes === null) {
+            return $info;
+        } else if (is_array($attributes)) {
+            return array_only($info, $attributes);
+        } else {
+            return array_get($info, $attributes);
+        }
+    }
+
+    /**
+     * get contact user info
+     * @param $nickName
+     * @param null|array $attributes
+     * @return array|mixed
+     */
+    public function getUserByNick($nickName, $attributes = null)
+    {
+        $all = array_merge($this->friends, $this->groups, $this->public);
+        $nicks = array_combine(array_pluck($all, 'NickName'), array_keys($all));
+        $info = array_get($nicks, $nickName, []);
 
         if ($attributes === null) {
             return $info;

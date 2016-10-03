@@ -151,8 +151,8 @@ class WebApi
         static $init_contact = false;
         if (! $init_contact) {
             try {
-                $this->getContact();
-                $this->getBatchGroupMembers();
+                $this->initContact();
+                $this->initBatchGroupMembers();
                 $init_contact = true;
             } catch (Exception $e) {
                 Log::error('get contact error' . $e->getMessage());
@@ -373,6 +373,35 @@ class WebApi
     }
 
     /**
+     * get login user
+     * @return array|mixed
+     * @throws Exception
+     */
+    public function getLoginUser()
+    {
+        if (empty($this->user)) {
+            $this->loginInit();
+        }
+
+        return $this->user;
+    }
+
+    /**
+     * get contact
+     * @return Contact
+     * @throws Exception
+     */
+    public function getContact()
+    {
+        if (empty($this->contact)) {
+            $this->initContact();
+            $this->initBatchGroupMembers();
+        }
+
+        return $this->contact;
+    }
+
+    /**
      * get login qrcode link
      * @param $uuid
      * @return string
@@ -580,12 +609,12 @@ class WebApi
     }
 
     /**
-     * get user all contact
+     * init user all contact
      * @throws Exception
      */
-    public function getContact()
+    public function initContact()
     {
-        Log::info('get contact');
+        Log::info('init contact');
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact';
         $response = $this->request('GET', $url, [
             'query' => [
@@ -606,16 +635,16 @@ class WebApi
     }
 
     /**
-     * get group members by chunk
+     * init group members by chunk
      * @throws Exception
      */
-    public function getBatchGroupMembers()
+    public function initBatchGroupMembers()
     {
-        Log::info('get group members');
-        $chunk_size = 30;
+        Log::info('init group members');
+        $chunk_size = 50;
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact';
 
-        foreach(array_chunk($this->contact->getGroups(), $chunk_size) as $groups) {
+        foreach(array_chunk(array_keys($this->contact->getGroups()), $chunk_size) as $group_names) {
             $response = $this->request('POST', $url, [
                 'query' => [
                     'lang' => 'zh_CN',
@@ -625,10 +654,10 @@ class WebApi
                 'body' => json_encode(
                     [
                         'BaseRequest' => $this->getBaseRequest(),
-                        'Count' => count($groups),
-                        'List' => array_map(function($group) {
-                            return array_only($group, ['UserName', 'EncryChatRoomId']);
-                        }, $groups),
+                        'Count' => count($group_names),
+                        'List' => array_map(function ($group_name) {
+                            return ['UserName' => $group_name, 'EncryChatRoomId' => 0];
+                        }, $group_names),
                     ]
                 )
             ]);
@@ -748,7 +777,7 @@ class WebApi
             $msg_id = $this->getClientMessageID();
 
             $response = $this->request('POST', $url, [
-                'body' => [
+                'body' => json_encode([
                     'BaseRequest' => $this->getBaseRequest(),
                     'Msg' => [
                         'ClientMsgId' => $msg_id,
@@ -758,7 +787,7 @@ class WebApi
                         'Type' => 1,
                         'Content' => $content,
                     ]
-                ]
+                ]),
             ]);
 
             $content = json_decode($response, true);
@@ -773,6 +802,24 @@ class WebApi
             return false;
         }
     }
+
+    /**
+     * send emotion
+     * @param $from
+     * @param $to
+     * @param $gif_path
+     * @return bool
+     */
+    public function sendEmotion($from, $to, $gif_path)
+    {
+        $file = new File($gif_path);
+        $ext = $file->getExtension();
+        if ($ext != 'gif') {
+            return false;
+        }
+        return $this->sendImage($from, $to, $gif_path);
+    }
+
 
     /**
      * send image && gif emotion
@@ -802,7 +849,7 @@ class WebApi
             }
 
             $response = $this->request('POST', $url, [
-                'body' => [
+                'body' => json_encode([
                     'BaseRequest' => $this->getBaseRequest(),
                     'Msg' => [
                         'ClientMsgId' => $msg_id,
@@ -811,7 +858,7 @@ class WebApi
                         'LocalID' => $msg_id,
                         'MediaId' => $this->uploadMedia($from, $to, $img_path),
                     ] + $info
-                ]
+                ]),
             ]);
 
             $content = json_decode($response, true);
@@ -842,7 +889,7 @@ class WebApi
             $file = new File($file_path);
 
             $response = $this->request('POST', $url, [
-                'body' => [
+                'body' => json_encode([
                     'BaseRequest' => $this->getBaseRequest(),
                     'Msg' => [
                         'ClientMsgId' => $msg_id,
@@ -856,7 +903,7 @@ class WebApi
                             <attachid></attachid><fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>",
                                 $file->getFilename(), 6, $file->getSize(), $file->getExtension()),
                     ]
-                ]
+                ]),
             ]);
 
             $content = json_decode($response, true);
