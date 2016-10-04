@@ -77,7 +77,7 @@ class WebApi
         $this->clientOptions = [
                 'allow_redirects' => false,
                 'http_errors' => false,
-                'connect_timeout' => config('wechat.web_api.connect_timeout', 30),
+                'timeout' => config('wechat.web_api.connect_timeout', 30),
                 'debug' => config('wechat.debug', false),
             ] + array_replace_recursive([
                 'cookies' => new CookieJar(),
@@ -148,7 +148,7 @@ class WebApi
         // save state to file
         $this->saveState();
 
-        // get contact
+        // init contact
         static $init_contact = false;
         if (! $init_contact) {
             try {

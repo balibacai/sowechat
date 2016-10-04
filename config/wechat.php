@@ -2,7 +2,7 @@
 
 return [
 
-    'debug' => env('APP_DEBUG', false),
+    'debug' => env('WECHAT_DEBUG', false),
 
     'web_api' => [
         'connect_timeout' => 30,
@@ -10,7 +10,7 @@ return [
     ],
 
     'job' => [
-        'connection' => 'default',
-        'queue' => 'default',
+        'connection' => env('QUEUE_DRIVER', 'redis'),
+        'queue' => env('JOB_QUEUE', 'default'),
     ],
 ];
