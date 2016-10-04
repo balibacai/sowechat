@@ -36,7 +36,7 @@ class SaveWechatMessageListener
     {
         $message = new WechatMessage([
             'type' => MessageType::getType($event->type),
-            'content' => $event->value,
+            'content' => is_array($event->value) ? json_encode($event->value, JSON_UNESCAPED_UNICODE) : $event->value,
             'from_user_name' => $event->from ? array_get($event->from, 'UserName') : null,
             'from_user_nick' => $event->from ? array_get($event->from, 'NickName') : null,
             'to_user_name' => $event->to ? array_get($event->to, 'UserName') : null,
