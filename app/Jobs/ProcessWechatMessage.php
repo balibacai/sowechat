@@ -81,7 +81,11 @@ class ProcessWechatMessage implements ShouldQueue
                 } else {
                     $news = json_encode(array_only($data['appmsg'], ['title', 'des', 'url']), JSON_UNESCAPED_UNICODE);
                 }
-                $this->value = json_encode($news, JSON_UNESCAPED_UNICODE);
+                $this->value = $news;
+                break;
+
+            case MessageType::Card:
+                $this->value = array_only(array_get($this->info, 'RecommendInfo', []), ['NickName', 'Province', 'City']);
                 break;
         }
 
