@@ -395,14 +395,20 @@ class WebApi
 
     /**
      * get contact
-     * @return Contact
+`     * @param string|null $userName
+     * @param string|array|null $attributes
+     * @return Contact|array|mixed
      * @throws Exception
      */
-    public function getContact()
+    public function getContact($userName = null, $attributes = null)
     {
         if (empty($this->contact)) {
             $this->initContact();
             $this->initBatchGroupMembers();
+        }
+
+        if ($userName) {
+            return $this->contact->getUser($userName, $attributes);
         }
 
         return $this->contact;
@@ -725,7 +731,8 @@ class WebApi
 
             // process message job
             try {
-                $job = (new ProcessWechatMessage($message['MsgType'], $message['FromUserName'], $value, $message))
+                $job = (new ProcessWechatMessage($message['MsgType'], $this->getContact($message['FromUserName']),
+                    $this->getContact($message['ToUserName']), $value, $message))
                     ->onConnection(config('wechat.job.connection'))
                     ->onQueue(config('wechat.job.queue'));
                 dispatch($job);

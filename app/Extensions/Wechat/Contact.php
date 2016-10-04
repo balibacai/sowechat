@@ -12,12 +12,13 @@ class Contact
     public function __construct($data)
     {
         foreach($data as $item) {
+            $value = array_only($item, ['UserName', 'NickName']);
             if ($item['VerifyFlag'] == 8) {
-                $this->public[$item['UserName']] = array_only($item, ['NickName']);
+                $this->public[$item['UserName']] = $value;
             } else if (starts_with($item['UserName'], '@@')) {
-                $this->groups[$item['UserName']] = array_only($item, ['NickName']);
+                $this->groups[$item['UserName']] = $value;
             } else {
-                $this->friends[$item['UserName']] = array_only($item, ['NickName']);
+                $this->friends[$item['UserName']] = $value;
             }
         }
     }
@@ -49,7 +50,7 @@ class Contact
     {
         $this->groupMembers[$groupName] = array_combine(array_pluck($members, 'UserName'),
             array_map(function ($item) {
-                return array_only($item, ['NickName']);
+                return array_only($item, ['UserName', 'NickName']);
             }, $members)
         );
     }
@@ -88,7 +89,7 @@ class Contact
     public function getUserByNick($nickName, $attributes = null)
     {
         $all = array_merge($this->friends, $this->groups, $this->public);
-        $nicks = array_combine(array_pluck($all, 'NickName'), array_keys($all));
+        $nicks = array_combine(array_pluck($all, 'NickName'), $all);
         $info = array_get($nicks, $nickName, []);
 
         if ($attributes === null) {

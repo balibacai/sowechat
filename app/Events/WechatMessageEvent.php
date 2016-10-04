@@ -5,7 +5,6 @@ namespace App\Events;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
@@ -14,21 +13,24 @@ class WechatMessageEvent
     use InteractsWithSockets, SerializesModels;
 
     protected $type;
-    protected $sender;
+    protected $from = [];
+    protected $to = [];
     protected $value;
     protected $info = [];
 
     /**
      * WechatMessageEvent constructor.
-     * @param $type
-     * @param $sender
-     * @param $value
+     * @param int $type
+     * @param array $from
+     * @param array $to
+     * @param string $value
      * @param array $info
      */
-    public function __construct($type, $sender, $value, $info = [])
+    public function __construct($type, $from, $to, $value, $info = [])
     {
         $this->type = $type;
-        $this->sender = $sender;
+        $this->from = $from;
+        $this->to = $to;
         $this->value = $value;
         $this->info = $info;
     }

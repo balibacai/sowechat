@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Extensions\Wechat\MessageType;
 use Event;
 use Illuminate\Bus\Queueable;
 use App\Events\WechatMessageEvent;
@@ -14,21 +15,24 @@ class ProcessWechatMessage implements ShouldQueue
     use InteractsWithQueue, Queueable, SerializesModels;
 
     protected $type;
-    protected $sender;
+    protected $from = [];
+    protected $to = [];
     protected $value;
     protected $info = [];
 
     /**
      * Create a new job instance.
-     * @param $type
-     * @param $sender
-     * @param $value
+     * @param int $type
+     * @param array $from
+     * @param array $to
+     * @param string $value
      * @param array $info
      */
-    public function __construct($type, $sender, $value, $info = [])
+    public function __construct($type, $from, $to, $value, $info = [])
     {
         $this->type = $type;
-        $this->sender = $sender;
+        $this->from = $from;
+        $this->to = $to;
         $this->value = $value;
         $this->info = $info;
     }
@@ -40,9 +44,20 @@ class ProcessWechatMessage implements ShouldQueue
      */
     public function handle()
     {
+        if ($this->type == MessageType::Init) {
+            return null;
+        }
+
         // TODO pre process & format
+        switch ($this->type) {
+            case MessageType::Text:
+                break;
+
+            case MessageType::LinkShare:
+                break;
+        }
 
         // fire event to consumers
-        Event::fire(new WechatMessageEvent($this->type, $this->sender, $this->value, $this->info));
+         Event::fire(new WechatMessageEvent($this->type, $this->from, $this->to, $this->value, $this->info));
     }
 }
