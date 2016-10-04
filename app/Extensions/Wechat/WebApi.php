@@ -220,6 +220,12 @@ class WebApi
                 case SyncCheckStatus::Fail:
                     throw new Exception('lost user, please relogin');
                     break;
+
+                default:
+                    // unknown status
+                    Log::info('unknown status ' . SyncCheckStatus::getStatus($check_status));
+                    $this->loginInit();
+                    break;
             }
         }
 
