@@ -724,10 +724,14 @@ class WebApi
             ]);
 
             // process message job
-            $job = (new ProcessWechatMessage($message['MsgType'], $message['FromUserName'], $value, $message))
-                ->onConnection(config('wechat.job.connection'))
-                ->onQueue(config('wechat.job.queue'));
-            dispatch($job);
+            try {
+                $job = (new ProcessWechatMessage($message['MsgType'], $message['FromUserName'], $value, $message))
+                    ->onConnection(config('wechat.job.connection'))
+                    ->onQueue(config('wechat.job.queue'));
+                dispatch($job);
+            } catch (Exception $e) {
+                Log::error('can not push message in job ' . $e->getMessage());
+            }
         }
     }
 
