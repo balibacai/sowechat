@@ -189,11 +189,20 @@ class WebApi
                             $has_new = true;
                             $this->receiveMessage($detail['AddMsgList']);
                         }
+
                         if ($detail['DelContactCount'] > 0) {
                             Log::info('contact delete', $detail['DelContactList']);
                         }
+
                         if ($detail['ModContactCount'] > 0) {
-                            Log::info('contact changed', $detail['ModContactList']);
+                            Log::info('contact changed');
+                            foreach ($detail['ModContactList'] as $item) {
+                                if (starts_with($item['UserName'], '@@')) {
+                                    $this->contact->setGroupMembers($item['UserName'], $item['MemberList'], array_except($item, 'MemberList'));
+                                } else {
+                                    $this->contact->addContact([$item]);
+                                }
+                            }
                         }
 
                         if (! $has_new) {
@@ -395,7 +404,7 @@ class WebApi
 
     /**
      * get contact
-`     * @param string|null $userName
+     * @param string|null $userName
      * @param string|array|null $attributes
      * @return Contact|array|mixed
      * @throws Exception
@@ -408,7 +417,14 @@ class WebApi
         }
 
         if ($userName) {
-            return $this->contact->getUser($userName, $attributes);
+            $info = $this->contact->getUser($userName, $attributes);
+
+            if (empty($info) && starts_with($userName, '@@')) {
+                $this->initBatchGroupMembers([$userName]);
+                $info = $this->contact->getUser($userName, $attributes);
+            }
+
+            return $info;
         }
 
         return $this->contact;
@@ -649,15 +665,20 @@ class WebApi
 
     /**
      * init group members by chunk
+     * @param array $groupNames
      * @throws Exception
      */
-    public function initBatchGroupMembers()
+    public function initBatchGroupMembers($groupNames = [])
     {
         Log::info('init group members');
         $chunk_size = 50;
         $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact';
 
-        foreach(array_chunk(array_keys($this->contact->getGroups()), $chunk_size) as $group_names) {
+        if (! $groupNames) {
+            $groupNames = array_keys($this->contact->getGroups());
+        }
+
+        foreach(array_chunk($groupNames, $chunk_size) as $group_names) {
             $response = $this->request('POST', $url, [
                 'query' => [
                     'lang' => 'zh_CN',
@@ -680,9 +701,9 @@ class WebApi
             if (array_get($content, 'BaseResponse.Ret') !== 0) {
                 throw new Exception('getcontact error');
             }
-
             foreach(array_get($content, 'ContactList', []) as $group_list) {
-                $this->contact->setGroupMembers($group_list['UserName'], $group_list['MemberList']);
+                $this->contact->setGroupMembers($group_list['UserName'], $group_list['MemberList'],
+                    array_except($group_list, 'MemberList'));
             }
         }
     }
@@ -696,16 +717,6 @@ class WebApi
         foreach ($messages as $message) {
             $value = '';
             switch ($message['MsgType']) {
-                case MessageType::Text:
-                    $value = $message['Content'];
-                    break;
-
-                case MessageType::LinkShare:
-                    $xml = str_replace('<br/>', '', htmlspecialchars_decode($message['Content']));
-                    $xml = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
-                    $data = json_decode(json_encode($xml), true);
-                    $value = json_encode(array_only($data['appmsg'], ['title', 'des', 'url']), JSON_UNESCAPED_UNICODE);
-                    break;
 
                 case MessageType::Image:
                 case MessageType::Voice:
@@ -714,7 +725,9 @@ class WebApi
                     break;
 
                 case MessageType::Init:
-                    // $this->loginInit();
+                case MessageType::Text:
+                case MessageType::LinkShare:
+                    // do nothing
                     break;
 
                 default:
@@ -723,7 +736,7 @@ class WebApi
             }
 
             Log::info('success get new message', [
-                'from' => $this->contact->getUser(array_get($message, 'FromUserName'), 'NickName'),
+                'from' => $this->getContact($message['FromUserName'], 'NickName'),
                 'type' => MessageType::getType($message['MsgType']),
                 'value' => $value,
                 'raw_content' => $message['MsgType'] != MessageType::Init ? $message : '',

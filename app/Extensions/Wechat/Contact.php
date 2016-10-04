@@ -4,38 +4,33 @@ namespace App\Extensions\Wechat;
 
 class Contact
 {
-    protected $friends = []; // 好友
-    protected $groups = []; // 群
-    protected $groupMembers = []; // 群成员
-    protected $public = []; // 公众号
+    public $data = [];
+    public $groupMembers = [];
 
     public function __construct($data)
     {
-        foreach($data as $item) {
-            $value = array_only($item, ['UserName', 'NickName']);
-            if ($item['VerifyFlag'] == 8) {
-                $this->public[$item['UserName']] = $value;
-            } else if (starts_with($item['UserName'], '@@')) {
-                $this->groups[$item['UserName']] = $value;
-            } else {
-                $this->friends[$item['UserName']] = $value;
-            }
-        }
+        $this->addContact($data);
     }
 
-    public function getFriends()
+    public function addContact($data)
     {
-        return $this->friends;
+        foreach ($data as $item) {
+            if ($item['VerifyFlag'] == 8) {
+                $type = 'public';
+            } else if (starts_with($item['UserName'], '@@')) {
+                $type = 'group';
+            } else {
+                $type = 'friend';
+            }
+            $this->data[$item['UserName']] = array_only($item, ['UserName', 'NickName']) + ['Type' => $type];
+        }
     }
 
     public function getGroups()
     {
-        return $this->groups;
-    }
-
-    public function getPublic()
-    {
-        return $this->public;
+        return array_filter($this->data, function ($item) {
+            return $item['Type'] == 'group';
+        });
     }
 
     public function getGroupMembers($groupName = null)
@@ -43,16 +38,26 @@ class Contact
         if ($groupName) {
             return array_get($this->groupMembers, $groupName, []);
         }
+
         return $this->groupMembers;
     }
 
-    public function setGroupMembers($groupName, $members)
+    public function setGroupMembers($groupName, $members, $groupInfo)
     {
-        $this->groupMembers[$groupName] = array_combine(array_pluck($members, 'UserName'),
-            array_map(function ($item) {
-                return array_only($item, ['UserName', 'NickName']);
-            }, $members)
-        );
+        if (! isset($this->data[$groupName])) {
+            $this->addContact([$groupInfo]);
+        }
+
+        $user_names = array_pluck($members, 'UserName');
+        $this->groupMembers[$groupName] = $user_names; // only refer
+
+        $this->data += array_combine($user_names,
+            array_map(function ($item) use ($groupName) {
+                return array_only($item, ['UserName', 'NickName']) + [
+                    'Type' => 'group_member',
+                    'GroupName' => $groupName,
+                ];
+            }, $members));
     }
 
     /**
@@ -67,9 +72,7 @@ class Contact
             return null;
         }
 
-        $info = array_get($this->friends, $userName,
-            array_get($this->groups, $userName),
-            array_get($this->public, $userName), []);
+        $info = array_get($this->data, $userName, []);
 
         if ($attributes === null) {
             return $info;
@@ -88,9 +91,13 @@ class Contact
      */
     public function getUserByNick($nickName, $attributes = null)
     {
-        $all = array_merge($this->friends, $this->groups, $this->public);
-        $nicks = array_combine(array_pluck($all, 'NickName'), $all);
-        $info = array_get($nicks, $nickName, []);
+        $nicks = array_pluck($this->data, 'UserName', 'NickName');
+        $user_name = array_get($nicks, $nickName);
+
+        if ($user_name == null) {
+            return [];
+        }
+        $info = array_get($this->data, $user_name, []);
 
         if ($attributes === null) {
             return $info;
