@@ -197,7 +197,7 @@ class WebApi
                         if ($detail['ModContactCount'] > 0) {
                             Log::info('contact changed');
                             foreach ($detail['ModContactList'] as $item) {
-                                if (starts_with($item['UserName'], '@@')) {
+                                if ($this->contact->isGroup($item['UserName'])) {
                                     $this->contact->setGroupMembers($item['UserName'], $item['MemberList'], array_except($item, 'MemberList'));
                                 } else {
                                     $this->contact->addContact([$item]);
@@ -419,7 +419,7 @@ class WebApi
         if ($userName) {
             $info = $this->contact->getUser($userName, $attributes);
 
-            if (empty($info) && starts_with($userName, '@@')) {
+            if (empty($info) && $this->contact->isGroup($userName)) {
                 $this->initBatchGroupMembers([$userName]);
                 $info = $this->contact->getUser($userName, $attributes);
             }
@@ -743,9 +743,17 @@ class WebApi
             ]);
 
             // process message job
+            $from = $this->getContact($message['ToUserName']);
+            $to = $this->getContact($message['ToUserName']);
+            if ($this->contact->isGroup($message['FromUserName'])) {
+                preg_match('|^(@[\w]+):<br/>|', $message['Content'], $matches);
+                if ($matches && count($matches) == 2) {
+                    $to = $this->getContact($matches[1]);
+                    $message['Content'] = substr($message['Content'], count($matches[0]));
+                }
+            }
             try {
-                $job = (new ProcessWechatMessage($message['MsgType'], $this->getContact($message['FromUserName']),
-                    $this->getContact($message['ToUserName']), $value, $message))
+                $job = (new ProcessWechatMessage($message['MsgType'], $from, $to, $value, $message))
                     ->onConnection(config('wechat.job.connection'))
                     ->onQueue(config('wechat.job.queue'));
                 dispatch($job);

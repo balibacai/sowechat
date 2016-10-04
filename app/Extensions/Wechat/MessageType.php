@@ -23,6 +23,9 @@ class MessageType
     const Revoke = 10002;
     const Unknown = -1;
 
+    // my custom constant
+    const PublicLinkShare = -2;
+
     /**
      * convert enum value to string
      * @param int $value

@@ -48,16 +48,44 @@ class ProcessWechatMessage implements ShouldQueue
             return null;
         }
 
-        // TODO pre process & format
+        // pre process & format
         switch ($this->type) {
             case MessageType::Text:
+
+                $this->value = $this->info['Content'];
+
+                // It's a Location
+                if (! empty($this->info['Url'])) {
+                    $this->type = MessageType::Location;
+                    $this->value = [
+                        'address' => array_first(explode(':', $this->value)),
+                        'url' => $this->info['Url'],
+                    ];
+                }
                 break;
 
             case MessageType::LinkShare:
+
+                if (array_get($this->from, 'Type') == 'public') {
+                    $this->type = MessageType::PublicLinkShare;
+                }
+
+                $xml = str_replace('<br/>', '', htmlspecialchars_decode($this->info['Content']));
+                $xml = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
+                $data = json_decode(json_encode($xml), true);
+                $items = array_get($data, 'appmsg.mmreader.category.item');
+                if (! empty($items) && is_array(array_first($items))) {
+                    $news = array_map(function ($item) {
+                        return array_only($item, ['title', 'digest', 'url']);
+                    }, $items);
+                } else {
+                    $news = json_encode(array_only($data['appmsg'], ['title', 'des', 'url']), JSON_UNESCAPED_UNICODE);
+                }
+                $this->value = json_encode($news, JSON_UNESCAPED_UNICODE);
                 break;
         }
 
         // fire event to consumers
-         Event::fire(new WechatMessageEvent($this->type, $this->from, $this->to, $this->value, $this->info));
+        Event::fire(new WechatMessageEvent($this->type, $this->from, $this->to, $this->value, $this->info));
     }
 }

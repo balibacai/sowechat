@@ -17,13 +17,18 @@ class Contact
         foreach ($data as $item) {
             if ($item['VerifyFlag'] == 8) {
                 $type = 'public';
-            } else if (starts_with($item['UserName'], '@@')) {
+            } else if ($this->isGroup($item['UserName'])) {
                 $type = 'group';
             } else {
                 $type = 'friend';
             }
             $this->data[$item['UserName']] = array_only($item, ['UserName', 'NickName']) + ['Type' => $type];
         }
+    }
+
+    public function isGroup($groupName)
+    {
+        return starts_with($groupName, '@@');
     }
 
     public function getGroups()
