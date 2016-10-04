@@ -14,7 +14,7 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         'App\Events\WechatMessageEvent' => [
-            'App\Listeners\WechatMessageListener',
+            'App\Listeners\SaveWechatMessageListener',
         ],
     ];
 
