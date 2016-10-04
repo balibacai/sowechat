@@ -2,7 +2,7 @@
 
 return [
 
-    'debug' => true,
+    'debug' => env('APP_DEBUG', false),
 
     'web_api' => [
         'connect_timeout' => 30,
