@@ -12,11 +12,11 @@ class WechatMessageEvent
 {
     use InteractsWithSockets, SerializesModels;
 
-    protected $type;
-    protected $from = [];
-    protected $to = [];
-    protected $value;
-    protected $info = [];
+    public $type;
+    public $from = [];
+    public $to = [];
+    public $value;
+    public $info = [];
 
     /**
      * WechatMessageEvent constructor.
