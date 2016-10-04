@@ -74,13 +74,16 @@ class WebApi
     public function __construct($clientOptions = [], $options = [])
     {
         // important, don't allow auto redirect
-        $this->clientOptions = array_replace_recursive([
-            'cookies' => new CookieJar(),
-            'allow_redirects' => false,
-            'connect_timeout' => 30,
-            'http_errors' => false,
-            'debug' => false,
-        ], $clientOptions);
+        $this->clientOptions = [
+                'allow_redirects' => false,
+                'http_errors' => false,
+                'connect_timeout' => config('wechat.web_api.connect_timeout', 30),
+                'debug' => config('wechat.debug', false),
+            ] + array_replace_recursive([
+                'cookies' => new CookieJar(),
+            ], $clientOptions);
+
+        $this->maxAttempts = config('wechat.web_api.max_attempts', 10);
 
         // in fact, if set login cookies, the loginInfo can be got from it,
         // and user can be restored using webwxinit api
@@ -88,9 +91,7 @@ class WebApi
         // for quick start
         $this->loginInfo = array_get($options, 'loginInfo', []);
         $this->user = array_get($options, 'user', []);
-
         $this->fileIndex = array_get($options, 'fileIndex', 0);
-        $this->maxAttempts = array_get($options, 'maxAttempts', 10);
 
         $this->limiter = app(RateLimiter::class);
         $this->limiter->clear('synccheck');

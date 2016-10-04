@@ -1,0 +1,16 @@
+<?php
+
+return [
+
+    'debug' => true,
+
+    'web_api' => [
+        'connect_timeout' => 30,
+        'max_attempts' => 10,
+    ],
+
+    'job' => [
+        'connection' => 'default',
+        'queue' => 'default',
+    ],
+];
