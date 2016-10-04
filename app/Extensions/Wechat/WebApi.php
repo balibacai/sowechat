@@ -3,14 +3,13 @@
 namespace App\Extensions\Wechat;
 
 use Log;
-use Event;
 use Cache;
 use Storage;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Http\File;
 use Illuminate\Cache\RateLimiter;
-use App\Events\WechatMessageEvent;
+use App\Jobs\ProcessWechatMessage;
 use Psr\Http\Message\ResponseInterface;
 
 class WebApi
@@ -723,8 +722,8 @@ class WebApi
                 'raw_content' => $message['MsgType'] != MessageType::Init ? $message : '',
             ]);
 
-            // fire event
-            Event::fire(new WechatMessageEvent($message['MsgType'], $message['FromUserName'], $value, $message));
+            // process message job
+            dispatch(new ProcessWechatMessage($message['MsgType'], $message['FromUserName'], $value, $message));
         }
     }
 
