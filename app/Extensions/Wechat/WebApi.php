@@ -725,6 +725,10 @@ class WebApi
                     break;
 
                 case MessageType::Init:
+                    // discard
+                    return;
+                    break;
+
                 case MessageType::Text:
                 case MessageType::LinkShare:
                     // do nothing
@@ -739,7 +743,7 @@ class WebApi
                 'from' => $this->getContact($message['FromUserName'], 'NickName'),
                 'type' => MessageType::getType($message['MsgType']),
                 'value' => $value,
-                'raw_content' => $message['MsgType'] != MessageType::Init ? $message : '',
+                'raw_content' => $message,
             ]);
 
             // process message job
