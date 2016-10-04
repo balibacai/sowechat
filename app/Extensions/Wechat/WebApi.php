@@ -743,7 +743,7 @@ class WebApi
             ]);
 
             // process message job
-            $from = $this->getContact($message['ToUserName']);
+            $from = $this->getContact($message['FromUserName']);
             $to = $this->getContact($message['ToUserName']);
             if ($this->contact->isGroup($message['FromUserName'])) {
                 preg_match('|^(@[\w]+):<br/>|', $message['Content'], $matches);
