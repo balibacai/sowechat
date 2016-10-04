@@ -724,7 +724,10 @@ class WebApi
             ]);
 
             // process message job
-            dispatch(new ProcessWechatMessage($message['MsgType'], $message['FromUserName'], $value, $message));
+            $job = (new ProcessWechatMessage($message['MsgType'], $message['FromUserName'], $value, $message))
+                ->onConnection(config('wechat.job.connection'))
+                ->onQueue(config('wechat.job.queue'));
+            dispatch($job);
         }
     }
 
