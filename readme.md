@@ -120,3 +120,7 @@ php artisan wechat:send
 ## 开源协议
 
 >[MIT协议](http://opensource.org/licenses/MIT)
+
+## 声明
+
+>**本软件不得用于商业用途, 仅做学习交流**

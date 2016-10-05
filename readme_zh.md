@@ -13,6 +13,9 @@
 >4. 支持`Restful Api`接口调用, 支持`消息异步处理`, 支持消息`事件广播`
 >5. 采用`Php`开发, `Php`是世界上最好的语言
 
+## 系统架构图
+
+
 ## 依赖软件
 >1. php 5.6以上版本
 >2. php composer
@@ -120,3 +123,7 @@ php artisan wechat:send
 ## 开源协议
 
 >[MIT协议](http://opensource.org/licenses/MIT)
+
+## 声明
+
+>**本软件不得用于商业用途, 仅做学习交流**
