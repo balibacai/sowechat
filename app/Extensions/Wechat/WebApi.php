@@ -845,7 +845,7 @@ class WebApi
                         'Type' => 1,
                         'Content' => $content,
                     ]
-                ]),
+                ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
             ]);
 
             $content = json_decode($response, true);
@@ -958,7 +958,7 @@ class WebApi
                         'Content' => sprintf("<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''><title>%s</title><des></des><action></action><type>%d</type><content></content><url></url><lowurl></lowurl><appattach><totallen>%d</totallen><attachid>%s</attachid><fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>",
                             $file->getFilename(), 6, $file->getSize(), $this->uploadMedia($from, $to, $file_path), $file->getExtension()),
                     ],
-                ]),
+                ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
             ]);
 
             $content = json_decode($response, true);
