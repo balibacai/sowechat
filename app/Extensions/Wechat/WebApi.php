@@ -425,8 +425,12 @@ class WebApi
         if ($userName) {
             $info = $this->contact->getUser($userName, $attributes);
 
-            if (empty($info) && $this->contact->isGroup($userName)) {
-                $this->initBatchGroupMembers([$userName]);
+            if (empty($info)) {
+                if ($this->contact->isGroup($userName)) {
+                    $this->initBatchGroupMembers([$userName]);
+                } else {
+                    $this->initContact();
+                }
                 $info = $this->contact->getUser($userName, $attributes);
             }
 
@@ -666,7 +670,9 @@ class WebApi
             throw new Exception('getcontact error');
         }
 
-        $this->contact = new Contact(array_get($content, 'MemberList', []));
+        $members = array_get($content, 'MemberList', []);
+        $this->contact = $this->contact ?: new Contact();
+        $this->contact->addContact($members);
     }
 
     /**

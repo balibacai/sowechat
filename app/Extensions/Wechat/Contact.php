@@ -7,7 +7,7 @@ class Contact
     public $data = [];
     public $groupMembers = [];
 
-    public function __construct($data)
+    public function __construct($data = [])
     {
         $this->addContact($data);
     }
