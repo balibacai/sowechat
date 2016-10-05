@@ -396,13 +396,22 @@ class WebApi
 
     /**
      * get login user
+     * @param null $attributes
      * @return array|mixed
      * @throws Exception
      */
-    public function getLoginUser()
+    public function getLoginUser($attributes = null)
     {
         if (empty($this->user)) {
             $this->loginInit();
+        }
+
+        if ($attributes) {
+            if (is_array($attributes)) {
+                return array_only($this->user, $attributes);
+            } else {
+                return array_get($this->user, $attributes);
+            }
         }
 
         return $this->user;
@@ -823,12 +832,11 @@ class WebApi
 
     /**
      * send normal message
-     * @param $from
      * @param $to
      * @param $content
      * @return bool
      */
-    public function sendMessage($from, $to, $content)
+    public function sendMessage($to, $content)
     {
         try {
             $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg';
@@ -839,7 +847,7 @@ class WebApi
                     'BaseRequest' => $this->getBaseRequest(),
                     'Msg' => [
                         'ClientMsgId' => $msg_id,
-                        'FromUserName' => $from,
+                        'FromUserName' => $this->getLoginUser('UserName'),
                         'ToUserName' => $to,
                         'LocalID' => $msg_id,
                         'Type' => 1,
@@ -863,30 +871,28 @@ class WebApi
 
     /**
      * send emotion
-     * @param $from
      * @param $to
      * @param $gif_path
      * @return bool
      */
-    public function sendEmotion($from, $to, $gif_path)
+    public function sendEmotion($to, $gif_path)
     {
         $file = new File($gif_path);
         $ext = $file->getExtension();
         if ($ext != 'gif') {
             return false;
         }
-        return $this->sendImage($from, $to, $gif_path);
+        return $this->sendImage($to, $gif_path);
     }
 
 
     /**
      * send image && gif emotion
-     * @param $from
      * @param $to
      * @param $img_path
      * @return bool
      */
-    public function sendImage($from, $to, $img_path)
+    public function sendImage($to, $img_path)
     {
         try {
             $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg?fun=async&f=json';
@@ -911,10 +917,10 @@ class WebApi
                     'BaseRequest' => $this->getBaseRequest(),
                     'Msg' => [
                         'ClientMsgId' => $msg_id,
-                        'FromUserName' => $from,
+                        'FromUserName' => $this->getLoginUser('UserName'),
                         'ToUserName' => $to,
                         'LocalID' => $msg_id,
-                        'MediaId' => $this->uploadMedia($from, $to, $img_path),
+                        'MediaId' => $this->uploadMedia($to, $img_path),
                     ] + $info
                 ]),
             ]);
@@ -934,12 +940,11 @@ class WebApi
 
     /**
      * send file
-     * @param $from
      * @param $to
      * @param $file_path
      * @return bool
      */
-    public function sendFile($from, $to, $file_path)
+    public function sendFile($to, $file_path)
     {
         try {
             $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendappmsg?fun=async&f=json';
@@ -951,12 +956,12 @@ class WebApi
                     'BaseRequest' => $this->getBaseRequest(),
                     'Msg' => [
                         'ClientMsgId' => $msg_id,
-                        'FromUserName' => $from,
+                        'FromUserName' => $this->getLoginUser('UserName'),
                         'ToUserName' => $to,
                         'LocalID' => $msg_id,
                         'Type' => 6,
                         'Content' => sprintf("<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''><title>%s</title><des></des><action></action><type>%d</type><content></content><url></url><lowurl></lowurl><appattach><totallen>%d</totallen><attachid>%s</attachid><fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>",
-                            $file->getFilename(), 6, $file->getSize(), $this->uploadMedia($from, $to, $file_path), $file->getExtension()),
+                            $file->getFilename(), 6, $file->getSize(), $this->uploadMedia($to, $file_path), $file->getExtension()),
                     ],
                 ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
             ]);
@@ -973,7 +978,7 @@ class WebApi
         }
     }
 
-    public function uploadMedia($from, $to, $file_path)
+    public function uploadMedia($to, $file_path)
     {
         $url = 'https://file.wx2.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json';
         $file = new File($file_path, true);
@@ -1018,7 +1023,7 @@ class WebApi
                         'StartPos' => 0,
                         'DataLen' => $file->getSize(),
                         'MediaType' => 4,
-                        'FromUserName' => $from,
+                        'FromUserName' => $this->getLoginUser('UserName'),
                         'ToUserName' => $to,
                         'FileMd5' => md5_file($file_path),
                     ]),

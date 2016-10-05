@@ -49,12 +49,12 @@ class WechatSend extends Command
         $from = $user['UserName'];
         $to = $from;
         Log::info('send text message');
-        $this->api->sendMessage($from, $to, 'hello 世界 http://www.baidu.com');
+        $this->api->sendMessage($to, 'hello 世界 http://www.baidu.com');
         Log::info('send image');
-        $this->api->sendImage($from, $to, storage_path('app/wechat/qrcode.png'));
+        $this->api->sendImage($to, storage_path('app/wechat/qrcode.png'));
         Log::info('send emotion');
-        $this->api->sendEmotion($from, $to, storage_path('app/wechat/image/test.gif'));
+        $this->api->sendEmotion($to, storage_path('app/wechat/image/test.gif'));
         Log::info('send file');
-        $this->api->sendFile($from, $to, storage_path('app/wechat/core_state.txt'));
+        $this->api->sendFile($to, storage_path('app/wechat/core_state.txt'));
     }
 }
