@@ -36,12 +36,12 @@ class SaveWechatMessageListener
     {
         $message = new WechatMessage([
             'type' => MessageType::getType($event->type),
-            'content' => is_array($event->value) ? json_encode($event->value, JSON_UNESCAPED_UNICODE) : $event->value,
+            'content' => is_array($event->value) ? json_encode($event->value, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) : $event->value,
             'from_user_name' => $event->from ? array_get($event->from, 'UserName') : null,
             'from_user_nick' => $event->from ? array_get($event->from, 'NickName') : null,
             'to_user_name' => $event->to ? array_get($event->to, 'UserName') : null,
             'to_user_nick' => $event->to ? array_get($event->to, 'NickName') : null,
-            'info' => json_encode($event->info, JSON_UNESCAPED_UNICODE),
+            'info' => json_encode($event->info, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
         ]);
         $message->save();
         Log::info('insert message to db', array_except($message->toArray(), ['info']));
