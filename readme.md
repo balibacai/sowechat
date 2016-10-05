@@ -1,27 +1,122 @@
-# Laravel PHP Framework
+# 基于Laravel PHP框架的微信网页版Api
 
-[![Build Status](https://travis-ci.org/laravel/framework.svg)](https://travis-ci.org/laravel/framework)
-[![Total Downloads](https://poser.pugx.org/laravel/framework/d/total.svg)](https://packagist.org/packages/laravel/framework)
-[![Latest Stable Version](https://poser.pugx.org/laravel/framework/v/stable.svg)](https://packagist.org/packages/laravel/framework)
-[![Latest Unstable Version](https://poser.pugx.org/laravel/framework/v/unstable.svg)](https://packagist.org/packages/laravel/framework)
-[![License](https://poser.pugx.org/laravel/framework/license.svg)](https://packagist.org/packages/laravel/framework)
+[![Build Status](https://travis-ci.org/mistcheng/sowechat.svg)](https://travis-ci.org/mistcheng/sowechat)
+[![Total Downloads](https://poser.pugx.org/mistcheng/sowechat/d/total.svg)](https://packagist.org/packages/mistcheng/sowechat)
+[![Latest Stable Version](https://poser.pugx.org/mistcheng/sowechat/v/stable.svg)](https://packagist.org/packages/mistcheng/sowechat)
+[![Latest Unstable Version](https://poser.pugx.org/mistcheng/sowechat/v/unstable.svg)](https://packagist.org/packages/mistcheng/sowechat)
+[![License](https://poser.pugx.org/mistcheng/sowechat/license.svg)](https://packagist.org/packages/mistcheng/sowechat)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable, creative experience to be truly fulfilling. Laravel attempts to take the pain out of development by easing common tasks used in the majority of web projects, such as authentication, routing, sessions, queueing, and caching.
+## 特性
+>1. `7*24`小时无终止运行, 弥补其他类似开源项目不能稳定运行的缺陷
+>2. 功能完善, 简单易用, 支持消息的发送/接收
+>3. 良好的架构设计, 支持`跨平台`的消息发送 & 支持灵活`可扩展`的消息处理能力
+>4. 支持`Restful Api`接口调用, 支持`消息异步处理`, 支持消息`事件广播`
+>5. 采用`Php`开发, `Php`是世界上最好的语言
 
-Laravel is accessible, yet powerful, providing tools needed for large, robust applications. A superb inversion of control container, expressive migration system, and tightly integrated unit testing support give you the tools you need to build any application with which you are tasked.
+## 依赖软件
+>1. php 5.6以上版本
+>2. php composer
+>3. redis(可选)
+>4. mysql(可选) 
 
-## Official Documentation
+## 使用
+### 1. 安装
+```bash
+git clone https://github.com/mistcheng/sowechat.git
+cd sowechat
+composer install
+```
 
-Documentation for the framework can be found on the [Laravel website](http://laravel.com/docs).
+### 2. 配置
+#### 2.1 config/wechat.php文件为微信配置文件
+```php
+<?php
+return [
 
-## Contributing
+    'debug' => env('WECHAT_DEBUG', false), // debug模式
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](http://laravel.com/docs/contributions).
+    'web_api' => [
+        'connect_timeout' => 30, // http请求超时时间，防止假死
+        'max_attempts' => 10, // 半分钟内频繁请求次数，防止微信接口失效导致的大量请求
+    ],
 
-## Security Vulnerabilities
+    'job' => [
+        'connection' => env('QUEUE_DRIVER', 'database'), // 微信消息入队列引擎，推荐database|redis
+        'queue' => env('JOB_QUEUE', 'default'), // 队列名称
+    ],
+];
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell at taylor@laravel.com. All security vulnerabilities will be promptly addressed.
+```
+#### 2.2 队列配置 (推荐使用database 或者 redis, 不推荐async)
+>`2.1`中`wechat.job.connection`选项需要在`config/database.php`中配置, 推荐使用database模式, 比较直观
 
-## License
+##### 2.2.1 如果connection选择`database`，则需配置选项`database.connections.mysql`
+```php
+'connections' => [
+        'mysql' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', 'localhost'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_DATABASE', 'forge'),
+            'username' => env('DB_USERNAME', 'forge'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+    ],
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).
+#####  2.2.2 如果connection选择`redis`，则需配置`database.redis`
+```php
+'redis' => [
+
+        'cluster' => false,
+
+        'default' => [
+            'host' => env('REDIS_HOST', 'localhost'),
+            'password' => env('REDIS_PASSWORD', null),
+            'port' => env('REDIS_PORT', 6379),
+            'database' => 0,
+        ],
+
+    ],
+```
+
+#### 2.3 运行
+
+##### 2.3.1 执行数据库脚本迁移指令
+```bash
+cd sowechat
+php artisan migrate
+```
+
+##### 2.3.2 首次运行微信
+```bash
+php artisan wechat:listen --new
+```
+>在storage/app/wechat目录下会生成一张二维码，扫码登录
+
+##### 2.3.3 再次运行微信
+```bash
+php artisan wechat:listen
+```
+>命令不加--new参数时，程序会使用上一次的登录态来运行，这样可避免再次扫码
+
+##### 2.3.4 微信消息处理
+```bash
+php artisan queue:work
+```
+>微信消息最终会有`App\Jobs\ProcessWechatMessage`Job来处理，在Job在对消息进行解析分类后会触发`App\Events\WechatMessageEvent`事件，事件订阅者可以进行后续处理，例如订阅者`App\Listeners\SaveWechatMessageListener`会将事件中的消息保存到数据库中。
+
+##### 2.3.5 微信消息发送
+```bash
+php artisan wechat:send
+```
+>目前仅支持命令行的发送，后续会增加api接口供调用
+
+## 开源协议
+
+>[MIT协议](http://opensource.org/licenses/MIT)
