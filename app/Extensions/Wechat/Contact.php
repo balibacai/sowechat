@@ -15,10 +15,12 @@ class Contact
     public function addContact($data)
     {
         foreach ($data as $item) {
-            if ($item['VerifyFlag'] == 8) {
+            if ($item['VerifyFlag'] & 8 != 0) {
                 $type = 'public';
             } else if ($this->isGroup($item['UserName'])) {
                 $type = 'group';
+            } else if (! starts_with($item['UserName'], '@')) {
+                $type = 'special';
             } else {
                 $type = 'friend';
             }
