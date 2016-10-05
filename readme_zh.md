@@ -20,15 +20,15 @@
 >4. mysql(可选) 
 
 ## 使用
-1. 安装
+### 1. 安装
 ```bash
 git clone https://github.com/mistcheng/sowechat.git
 cd sowechat
 composer install
 ```
 
-2. 配置
-2.1 config/wechat.php文件为微信配置文件
+### 2. 配置
+#### 2.1 config/wechat.php文件为微信配置文件
 ```php
 <?php
 return [
@@ -45,10 +45,12 @@ return [
         'queue' => env('JOB_QUEUE', 'default'), // 队列名称
     ],
 ];
+
 ```
-2.2 队列配置 (推荐使用database 或者 redis, 不推荐async)
+#### 2.2 队列配置 (推荐使用database 或者 redis, 不推荐async)
 >`2.1`中`wechat.job.connection`选项需要在`config/database.php`中配置, 推荐使用database模式, 比较直观
-2.2.1 如果connection选择`database`，则需配置选项`database.connections.mysql`
+
+##### 2.2.1 如果connection选择`database`，则需配置选项`database.connections.mysql`
 ```php
 'connections' => [
         'mysql' => [
@@ -66,7 +68,8 @@ return [
         ],
     ],
 ```
-2.2.2. 如果connection选择`redis`，则需配置`database.redis`
+
+#####  2.2.2 如果connection选择`redis`，则需配置`database.redis`
 ```php
 'redis' => [
 
@@ -81,29 +84,38 @@ return [
 
     ],
 ```
-2.3 运行
-2.3.1 执行数据库脚本迁移指令
+
+#### 2.3 运行
+
+##### 2.3.1 执行数据库脚本迁移指令
 ```bash
 cd sowechat
 php artisan migrate
 ```
-2.3.2 首次运行微信
+
+##### 2.3.2 首次运行微信
 ```bash
 php artisan wechat:listen --new
 ```
 >在storage/app/wechat目录下会生成一张二维码，扫码登录
 
-2.3.3 再次运行微信
+##### 2.3.3 再次运行微信
 ```bash
 php artisan wechat:listen
 ```
 >命令不加--new参数时，程序会使用上一次的登录态来运行，这样可避免再次扫码
 
-2.3.4 微信消息处理
+##### 2.3.4 微信消息处理
 ```bash
 php artisan queue:work
 ```
 >微信消息最终会有`App\Jobs\ProcessWechatMessage`Job来处理，在Job在对消息进行解析分类后会触发`App\Events\WechatMessageEvent`事件，事件订阅者可以进行后续处理，例如订阅者`App\Listeners\SaveWechatMessageListener`会将事件中的消息保存到数据库中。
+
+##### 2.3.5 微信消息发送
+```bash
+php artisan wechat:send
+```
+>目前仅支持命令行的发送，后续会增加api接口供调用
 
 ## 开源协议
 
