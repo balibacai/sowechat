@@ -10,7 +10,7 @@ return [
     ],
 
     'job' => [
-        'connection' => env('QUEUE_DRIVER', 'redis'),
+        'connection' => env('QUEUE_DRIVER', 'database'),
         'queue' => env('JOB_QUEUE', 'default'),
     ],
 ];
