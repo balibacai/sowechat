@@ -1059,6 +1059,14 @@ class WebApi
     }
 
     /**
+     * clear state
+     */
+    public function clearState()
+    {
+        Storage::delete('wechat/core_state.txt');
+    }
+
+    /**
      * get new instance from stored state
      * @param bool $debug
      * @return WebApi
