@@ -752,6 +752,12 @@ class WebApi
 
                 case MessageType::Text:
                 case MessageType::LinkShare:
+
+                    // attachment
+                    if (! empty($message['FileName']) && array_get($message, 'FileSize', 0) > 0) {
+                        $message['MsgType'] = MessageType::Attachment;
+                        $value = $this->downloadAttachment($message);
+                    }
                     // do nothing
                     break;
 
@@ -829,6 +835,45 @@ class WebApi
 
         return $path;
     }
+
+    /**
+     * download attachment message
+     * @param $message
+     * @return bool|string
+     * @throws Exception
+     */
+    public function downloadAttachment($message)
+    {
+        Log::info('downloadAttachment', $message);
+        switch ($message['MsgType']) {
+            case MessageType::Attachment:
+                $url = 'https://file.wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia';
+                $suffix = (new File($message['FileName'], false))->getExtension() ?: 'undefined';
+                $path = 'wechat/attachment/' . $message['MsgId'] . '.' . $suffix;
+                break;
+                break;
+
+            default:
+                return false;
+                break;
+        }
+
+        $data = $this->request('GET', $url, [
+            'query' => [
+                'sender' => $message['FromUserName'],
+                'mediaid' => $message['MediaId'],
+                'filename' => $message['FileName'],
+                'fromuser' => $this->getContact('Uin'),
+                'pass_ticket' => $this->getCookies('pass_ticket') ?: 'undefined',
+                'webwx_data_ticket' => $this->getCookies('webwx_data_ticket') ?: 'undefined',
+            ],
+        ]);
+
+        Storage::put($path, $data);
+
+        return $path;
+    }
+
 
     /**
      * send normal message

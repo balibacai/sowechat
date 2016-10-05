@@ -25,6 +25,7 @@ class MessageType
 
     // my custom constant
     const PublicLinkShare = -2;
+    const Attachment = -3;
 
     /**
      * convert enum value to string
