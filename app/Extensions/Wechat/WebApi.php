@@ -759,7 +759,7 @@ class WebApi
                 preg_match('|^(@[\w]+):<br/>|', $message['Content'], $matches);
                 if ($matches && count($matches) == 2) {
                     $to = $this->getContact($matches[1]);
-                    $message['Content'] = substr($message['Content'], count($matches[0]));
+                    $message['Content'] = substr($message['Content'], strlen($matches[0]));
                 }
             }
             try {
