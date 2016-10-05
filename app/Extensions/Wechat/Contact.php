@@ -4,8 +4,8 @@ namespace App\Extensions\Wechat;
 
 class Contact
 {
-    public $data = [];
-    public $groupMembers = [];
+    protected $data = [];
+    protected $groupMembers = [];
 
     public function __construct($data = [])
     {
@@ -15,7 +15,7 @@ class Contact
     public function addContact($data)
     {
         foreach ($data as $item) {
-            if ($item['VerifyFlag'] & 8 != 0) {
+            if (($item['VerifyFlag'] & 8) != 0) {
                 $type = 'public';
             } else if ($this->isGroup($item['UserName'])) {
                 $type = 'group';
@@ -113,5 +113,13 @@ class Contact
         } else {
             return array_get($info, $attributes);
         }
+    }
+
+    public function toArray()
+    {
+        return [
+            'data' => $this->data,
+            'group_members' => $this->groupMembers,
+        ];
     }
 }
