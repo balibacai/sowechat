@@ -13,6 +13,9 @@
 >4. 支持`Restful Api`接口调用, 支持`消息异步处理`, 支持消息`事件广播`
 >5. 采用`Php`开发, `Php`是世界上最好的语言
 
+## 系统架构图
+![系统架构图](http://oukei.me/images/sowechat_arch_v1.0.svg)
+
 ## 依赖软件
 >1. php 5.6以上版本
 >2. php composer
