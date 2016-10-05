@@ -1,7 +1,7 @@
 {
     "name": "mistcheng/sowechat",
     "description": "基于Laravel PHP框架的微信网页版Api架构 & Wechat(WeiXin) Web Api Based On Laravel PHP Framework",
-    "keywords": ["wechat", "weixin", "微信", "laravel", "php"],
+    "keywords": ["wechat", "weixin", "微信", "laravel", "php", "framework", "框架"],
     "license": "MIT",
     "type": "project",
     "require": {
