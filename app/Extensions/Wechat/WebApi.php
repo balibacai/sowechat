@@ -257,7 +257,7 @@ class WebApi
      * @return string plain/text
      * @throws Exception
      */
-    protected function request($method, $uri, array $options = [], $retry = 3)
+    protected function request($method, $uri, array $options = [], $retry = 10)
     {
         $default = [
             'headers' => [
@@ -273,7 +273,7 @@ class WebApi
 
             if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 400) {
                 if ($retry > 0) {
-                    sleep(1);
+                    sleep(5);
                     continue;
                 }
                 Log::error('request error after tries',  [
