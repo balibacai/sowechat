@@ -515,34 +515,48 @@ class WebApi
     public function loginInit()
     {
         Log::info('login init');
-        $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit';
+        $fail_times = 0;
 
-        $response = $this->request('POST', $url, [
-            'headers' => [
-                'Content-Type' => 'application/json; charset=UTF-8',
-            ],
-            'query' => [
-                'r' => $this->getReverseTimeStamp(),
-                'pass_ticket' => $this->loginInfo['pass_ticket'],
-            ],
-            'body' => json_encode([
-                'BaseRequest' => $this->getBaseRequest(),
-            ])
-        ]);
+        while (true) {
+            $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit';
 
-        $content = json_decode($response, true);
+            $response = $this->request('POST', $url, [
+                'headers' => [
+                    'Content-Type' => 'application/json; charset=UTF-8',
+                ],
+                'query' => [
+                    'r' => $this->getReverseTimeStamp(),
+                    'pass_ticket' => $this->loginInfo['pass_ticket'],
+                ],
+                'body' => json_encode([
+                    'BaseRequest' => $this->getBaseRequest(),
+                ])
+            ]);
 
-        if (! $content && array_get($content, 'BaseResponse.Ret') !== 0) {
-            throw new Exception('webwxinit fail');
+            $content = json_decode($response, true);
+
+            if (! $content && array_get($content, 'BaseResponse.Ret') !== 0) {
+                throw new Exception('webwxinit fail');
+            }
+
+            $this->loginInfo['skey'] = empty($content['Skey']) ? $this->loginInfo['skey'] : $content['Skey'];
+            $this->syncKey = new SyncKey(array_get($content, 'SyncKey', []));
+            $this->user = array_get($content, 'User', []);
+
+            if ($this->getLoginUser('Uin') == 0) {
+                $fail_times++;
+                if ($fail_times > $this->maxAttempts) {
+                    Cache::forget('wechat_login_uuid');
+                    Log::error('cant not get uesr info, please relogin');
+                    throw new Exception('cant not get uesr info, please relogin');
+                }
+                sleep(5);
+            }
+
+            Log::info('success get user info', $this->user);
+
+            return $content;
         }
-
-        $this->loginInfo['skey'] = empty($content['Skey']) ? $this->loginInfo['skey'] : $content['Skey'];
-        $this->syncKey = new SyncKey(array_get($content, 'SyncKey', []));
-        $this->user = array_get($content, 'User', []);
-
-        Log::info('success get user info', $this->user);
-
-        return $content;
     }
 
     public function statusNotify()
