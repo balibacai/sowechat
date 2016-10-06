@@ -1,4 +1,6 @@
-# 基于Laravel PHP框架的微信网页版Api
+# Wechat(WeiXin) Web Api Based On Laravel PHP Framework
+ 
+[中文文档：基于Laravel PHP框架的微信网页版Api](https://github.com/mistcheng/sowechat/blob/master/readme_zh.md)
 
 [![Build Status](https://travis-ci.org/mistcheng/sowechat.svg)](https://travis-ci.org/mistcheng/sowechat)
 [![Total Downloads](https://poser.pugx.org/mistcheng/sowechat/d/total.svg)](https://packagist.org/packages/mistcheng/sowechat)
@@ -6,60 +8,59 @@
 [![Latest Unstable Version](https://poser.pugx.org/mistcheng/sowechat/v/unstable.svg)](https://packagist.org/packages/mistcheng/sowechat)
 [![License](https://poser.pugx.org/mistcheng/sowechat/license.svg)](https://packagist.org/packages/mistcheng/sowechat)
 
-## 特性
->1. `7*24`小时无终止运行, 弥补其他类似开源项目不能稳定运行的缺陷
->2. 功能完善, 简单易用, 支持消息的发送/接收
->3. 良好的架构设计, 支持`跨平台`的消息发送 & 支持灵活`可扩展`的消息处理能力
->4. 支持`Restful Api`接口调用, 支持`消息异步处理`, 支持消息`事件广播`
->5. 采用`Php`开发, `Php`是世界上最好的语言
+## Features
+>1. `7*24`hours no-end running,
+>2. easy to use, support sending/receiving multi type messages
+>3. graceful system architecture,  support `cross platform` development and flexible custom `extensions`
+>4. support `Restful Api`, `async message processing` and`message event broadcasting`
+>5. based on `Php`,  the best language in The World! :)
 
-## 系统架构图
-![系统架构图](http://oukei.me/images/sowechat_arch_v1.0.svg)
->1. 该系统有三个部分组成, 各部分相互独立、互不影响
->2. `中间部分`为整个系统的核心部分, 负责微信扫码登录以及监听消息等, 为了系统`7*24`小时无终止运行, 该系统做了大量鲁棒性的工作。同时，该部分起到桥梁作用，对上游（左边部分）提供发送消息的能力；对下游（右边部分）推送经过封装的监听到的最新消息；该部分通过调用`php artisan wechat:listen`命令运行
->3. `左边部分`为系统发送消息的部分，用户可以自定义发送逻辑。同时该部分又是跨平台的。样例参考 `App\Console\Commands\WechatSend`， 在控制台中运行`php artisan wechat:send`即可看到效果
->4. `右边部分`为系统处理消息的部分，用户可以自定义处理逻辑。通过job`App\Jobs\ProcessWechatMessage` 的处理，已经将消息进行详细的分类（文本、分享、图片、语音、文件等），并将重要信息提取出来。该部分系统采用`事件`的机制，经格式化的消息作为事件`App\Events\WechatMessageEvent`发送出去，任何订阅者都可对消息事件进行个性化的处理，样例参考`App\Listeners\SaveWechatMessageListener`，它做的工作就是把消息存储到数据库中。
->5. `优点`：左中右三部分之间是三个独立的进程，相互之间互不影响。这样既能保证中间部分的长期稳定运行，用户又可以对左边部分和右边部分进行自由扩展。
+## System Architecture
+![System Architecture](http://oukei.me/images/sowechat_arch_v1.0.svg)
+>1. This System is composed of 3 independent components
+>2. The `Middle` component is core of The System,  doing qrcode scan & message listening; I do a lot of work for pupose of robust. Meantime, as a connector, it supports message-sending ability for the `Left` component, and pushs simple-formated message to the `Right` component. Run command `php artisan wechat:listen` to make it working.
+>3. The`Left`component is used for sending message, the user can send message to any friends in his code. class `App\Console\Commands\WechatSend` is a sample, run command`php artisan wechat:send` to make it working.
+>4. The`Right`component is used for processing message, the user can do anything for the coming message. The job`App\Jobs\ProcessWechatMessage` process each message into more formatted message(text,share,image,voice,file, etc). Next, It fires the `App\Events\WechatMessageEvent` event to the subscribers, who can do some custom things with the message. class `App\Listeners\SaveWechatMessageListener` is a sample that saving the message into the DB.
+>5. `Advantage`: The three components are 3 independent Process. this can grantee the non-ending running of the `Middle` part, at the same time, the user can do any extensions in the `Left` and `Right` part without disturbing the `Middle` part.
  
-
-## 依赖软件
->1. php 5.6以上版本
+## Prerequisite
+>1. php 5.6 or more
 >2. php composer
->3. redis(可选)
->4. mysql(可选) 
+>3. redis (optional)
+>4. mysql (optional)
 
-## 使用
-### 1. 安装
+## Usage
+### 1. Installation
 ```bash
 git clone https://github.com/mistcheng/sowechat.git
 cd sowechat
 composer install
 ```
 
-### 2. 配置
-#### 2.1 config/wechat.php文件为微信配置文件
+### 2. Configration
+#### 2.1 `config/wechat.php` is wechat config file
 ```php
 <?php
 return [
 
-    'debug' => env('WECHAT_DEBUG', false), // debug模式
+    'debug' => env('WECHAT_DEBUG', false), // debug mode
 
     'web_api' => [
-        'connect_timeout' => 30, // http请求超时时间，防止假死
-        'max_attempts' => 10, // 半分钟内频繁请求次数，防止微信接口失效导致的大量请求
+        'connect_timeout' => 30, // http request timeout
+        'max_attempts' => 10, // max request attempts in half minutes
     ],
 
     'job' => [
-        'connection' => env('QUEUE_DRIVER', 'database'), // 微信消息入队列引擎，推荐database|redis
-        'queue' => env('JOB_QUEUE', 'default'), // 队列名称
+        'connection' => env('QUEUE_DRIVER', 'database'), // wehcat message queu engine, recommend database|redis
+        'queue' => env('JOB_QUEUE', 'default'), // queue name
     ],
 ];
 
 ```
-#### 2.2 队列配置 (推荐使用database 或者 redis, 不推荐async)
->`2.1`中`wechat.job.connection`选项需要在`config/database.php`中配置, 推荐使用database模式, 比较直观
+#### 2.2 Queue Configuration (Recommend database or redis, never use async)
+>In section`2.1`, the option`wechat.job.connection` should be configured in the file `config/database.php`.
 
-##### 2.2.1 如果connection选择`database`，则需配置选项`database.connections.mysql`
+##### 2.2.1 if set `wechat.job.connection`with`database`, the option `database.connections.mysql`must be configured correctly
 ```php
 'connections' => [
         'mysql' => [
@@ -78,7 +79,7 @@ return [
     ],
 ```
 
-#####  2.2.2 如果connection选择`redis`，则需配置`database.redis`
+#####  2.2.2 if set `wechat.job.connection`with`redis`, the option `database.redis`should be configured properly.
 ```php
 'redis' => [
 
@@ -94,42 +95,42 @@ return [
     ],
 ```
 
-#### 2.3 运行
+#### 2.3 Running
 
-##### 2.3.1 执行数据库脚本迁移指令
+##### 2.3.1 First time, init DB script
 ```bash
 cd sowechat
 php artisan migrate
 ```
 
-##### 2.3.2 首次运行微信
+##### 2.3.2 Run the `Middle`component For new
 ```bash
 php artisan wechat:listen --new
 ```
->在storage/app/wechat目录下会生成一张二维码，扫码登录
+>There will be a new qrcode in the folder `storage/app/wechat`, use your wechat scaning it to login.
 
-##### 2.3.3 再次运行微信
+##### 2.3.3 Run the `Middle`component without re-login
 ```bash
 php artisan wechat:listen
 ```
->命令不加--new参数时，程序会使用上一次的登录态来运行，这样可避免再次扫码
+>Run the command without passing argument --new
 
-##### 2.3.4 微信消息处理
+##### 2.3.4 Processing Wechat Message
 ```bash
 php artisan queue:work
 ```
->微信消息最终会有`App\Jobs\ProcessWechatMessage`Job来处理，在Job在对消息进行解析分类后会触发`App\Events\WechatMessageEvent`事件，事件订阅者可以进行后续处理，例如订阅者`App\Listeners\SaveWechatMessageListener`会将事件中的消息保存到数据库中。
+>See Job`App\Jobs\ProcessWechatMessage` and sample class `App\Listeners\SaveWechatMessageListener` for more detail.
 
-##### 2.3.5 微信消息发送
+##### 2.3.5 Sending Wechat Message
 ```bash
 php artisan wechat:send
 ```
->目前仅支持命令行的发送，后续会增加api接口供调用
+>See class `App\Console\Commands\WechatSend` for more detail.
 
-## 开源协议
+## OpenSource
 
->[MIT协议](http://opensource.org/licenses/MIT)
+>[MIT](http://opensource.org/licenses/MIT)
 
-## 声明
+## Statement
 
->**本软件不得用于商业用途, 仅做学习交流**
+>**This software shall not be used for commercial purposes only**
