@@ -541,9 +541,8 @@ class WebApi
 
             $this->loginInfo['skey'] = empty($content['Skey']) ? $this->loginInfo['skey'] : $content['Skey'];
             $this->syncKey = new SyncKey(array_get($content, 'SyncKey', []));
-            $this->user = array_get($content, 'User', []);
 
-            if ($this->getLoginUser('Uin') == 0) {
+            if (array_get($content, 'User.Uin', -1) == 0) {
                 $fail_times++;
                 if ($fail_times > $this->maxAttempts) {
                     Cache::forget('wechat_login_uuid');
@@ -553,6 +552,7 @@ class WebApi
                 sleep(5);
             }
 
+            $this->user = array_get($content, 'User', []);
             Log::info('success get user info', $this->user);
 
             return $content;
