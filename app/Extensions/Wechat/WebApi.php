@@ -550,6 +550,7 @@ class WebApi
                     throw new Exception('cant not get uesr info, please relogin');
                 }
                 sleep(5);
+                continue;
             }
 
             $this->user = array_get($content, 'User', []);
