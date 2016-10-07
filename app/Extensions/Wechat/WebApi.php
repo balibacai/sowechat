@@ -549,6 +549,7 @@ class WebApi
                     Log::error('cant not get uesr info, please relogin');
                     throw new Exception('cant not get uesr info, please relogin');
                 }
+                Log::warning('get user info error, retry');
                 sleep(5);
                 continue;
             }
