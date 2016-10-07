@@ -24,7 +24,7 @@ class Contact
             } else {
                 $type = 'friend';
             }
-            $this->data[$item['UserName']] = array_only($item, ['UserName', 'NickName']) + ['Type' => $type];
+            $this->data[$item['UserName']] = array_only($item, ['UserName', 'NickName', 'RemarkName']) + ['Type' => $type];
         }
     }
 
