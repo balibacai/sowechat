@@ -87,6 +87,10 @@ class ProcessWechatMessage implements ShouldQueue
             case MessageType::Card:
                 $this->value = array_only(array_get($this->info, 'RecommendInfo', []), ['NickName', 'Province', 'City']);
                 break;
+
+            case MessageType::System:
+                $this->value = array_get($this->info, 'Content');
+                break;
         }
 
         // fire event to consumers
