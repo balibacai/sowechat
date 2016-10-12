@@ -209,7 +209,7 @@ class WebApi
                             $this->loginInit();
                         }
                     } catch (Exception $e) {
-                        Log::error('get contact error ' . $e->getMessage());
+                        Log::error('get new message error ' . $e->getMessage());
                     }
                     break;
 
@@ -785,11 +785,13 @@ class WebApi
 
                 case MessageType::Emotion:
 
-                    $xml = htmlspecialchars_decode($message['Content']);
-                    $xml = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
-                    $data = json_decode(json_encode($xml), true);
-                    if (array_get($data, 'emoji.@attributes.cdnurl')) {
-                        $value = $this->downloadEmotion($data);
+                    if (! empty($message['Content'])) {
+                        $xml = htmlspecialchars_decode($message['Content']);
+                        $xml = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
+                        $data = json_decode(json_encode($xml), true);
+                        if (array_get($data, 'emoji.@attributes.cdnurl')) {
+                            $value = $this->downloadEmotion($data);
+                        }
                     }
                     break;
 
