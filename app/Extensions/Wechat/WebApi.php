@@ -269,7 +269,13 @@ class WebApi
 
         // enable retry
         while ($retry--) {
-            $response = $this->client->request($method, $uri, $options);
+            try {
+                $response = $this->client->request($method, $uri, $options);
+            } catch (Exception $e) {
+                Log::warning('network error ' . $e->getMessage());
+                sleep(5);
+                continue;
+            }
 
             if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 400) {
                 if ($retry > 0) {
