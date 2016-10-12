@@ -783,6 +783,16 @@ class WebApi
                     // do nothing
                     break;
 
+                case MessageType::Emotion:
+
+                    $xml = htmlspecialchars_decode($message['Content']);
+                    $xml = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
+                    $data = json_decode(json_encode($xml), true);
+                    if (array_get($data, 'emoji.@attributes.cdnurl')) {
+                        $value = $this->downloadEmotion($data);
+                    }
+                    break;
+
                 default:
                     Log::info('other message type', $message);
                     break;
@@ -829,13 +839,13 @@ class WebApi
             case MessageType::Image:
                 $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg';
                 $suffix = 'jpg';
-                $path = 'wechat/image/' . $message['MsgId'] . '.' . $suffix;
+                $path = 'wechat/image/' . $message['MsgId'];
                 break;
 
             case MessageType::Voice:
                 $url = 'https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice';
                 $suffix = 'mp3';
-                $path = 'wechat/voice/' . $message['MsgId'] . '.' . $suffix;
+                $path = 'wechat/voice/' . $message['MsgId'];
                 break;
 
             default:
@@ -853,6 +863,7 @@ class WebApi
             }
         ]);
 
+        $path .= '.' . $suffix;
         Storage::put($path, $data);
 
         return $path;
@@ -891,6 +902,28 @@ class WebApi
             ],
         ]);
 
+        Storage::put($path, $data);
+
+        return $path;
+    }
+
+    /**
+     * download emotion
+     * @param $data
+     * @return string
+     * @throws Exception
+     */
+    public function downloadEmotion($data)
+    {
+        Log::info('downloadEmotion', $data);
+        $suffix = 'gif';
+        $data = $this->request('GET', array_get($data, 'emoji.@attributes.cdnurl'), [
+            'on_headers' => function (ResponseInterface $response) use (& $suffix) {
+                $suffix = last(explode('/', $response->getHeaderLine('Content-Type')));
+            }
+        ]);
+
+        $path = 'wechat/emotion/' . array_get($data, 'emoji.@attributes.md5', str_random(32)) . '.' . $suffix;
         Storage::put($path, $data);
 
         return $path;
