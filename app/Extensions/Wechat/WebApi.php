@@ -776,7 +776,7 @@ class WebApi
                 case MessageType::LinkShare:
 
                     // attachment
-                    if (! empty($message['FileName']) && array_get($message, 'FileSize', 0) > 0) {
+                    if (array_get($message, 'FileSize', 0) > 0) {
                         $message['MsgType'] = MessageType::Attachment;
                         $value = $this->downloadAttachment($message);
                     }
@@ -884,8 +884,6 @@ class WebApi
             case MessageType::Attachment:
                 $url = 'https://file.wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia';
                 $suffix = (new File($message['FileName'], false))->getExtension() ?: 'undefined';
-                $path = 'wechat/attachment/' . $message['MsgId'] . '.' . $suffix;
-                break;
                 break;
 
             default:
@@ -902,7 +900,12 @@ class WebApi
                 'pass_ticket' => $this->getCookies('pass_ticket') ?: 'undefined',
                 'webwx_data_ticket' => $this->getCookies('webwx_data_ticket') ?: 'undefined',
             ],
+            'on_headers' => function (ResponseInterface $response) use (& $suffix) {
+                $suffix = last(explode('/', $response->getHeaderLine('Content-Type')));
+            }
         ]);
+
+        $path = 'wechat/attachment/' . $message['MsgId'] . '.' . $suffix;
 
         Storage::put($path, $data);
 
@@ -1168,8 +1171,9 @@ class WebApi
     /**
      * clear state
      */
-    public function clearState()
+    public static function clearState()
     {
+        Cache::forget('wechat_login_uuid');
         Storage::delete('wechat/core_state.txt');
     }
 

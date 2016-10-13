@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Cache;
 use Illuminate\Console\Command;
 use App\Extensions\Wechat\WebApi;
 
@@ -45,6 +46,7 @@ class WechatListen extends Command
     public function handle()
     {
         if ($this->option('new')) {
+            WebApi::clearState();
             $this->api = new WebApi();
         } else {
             $this->api = WebApi::restoreState();
