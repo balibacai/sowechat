@@ -120,11 +120,37 @@ php artisan queue:work
 ```
 >微信消息最终会有`App\Jobs\ProcessWechatMessage`Job来处理，在Job在对消息进行解析分类后会触发`App\Events\WechatMessageEvent`事件，事件订阅者可以进行后续处理，例如订阅者`App\Listeners\SaveWechatMessageListener`会将事件中的消息保存到数据库中。
 
-##### 2.3.5 微信消息发送
+##### 2.3.5 微信消息发送（控制台方式）
 ```bash
 php artisan wechat:send
 ```
 >目前仅支持命令行的发送，后续会增加api接口供调用
+
+##### 2.3.6 微信消息发送（web api 调用方式）
+```bash
+php artisan wechat:serve --port=your_port
+```
+>在调用接口之前，需要确保启动了web服务
+>最简单的方式就是通过上面的命令来启动一个mini服务
+>同样，你也可以通过部署`Apache` `Nginx` 等服务来启动
+
+**下面是一些例子，调用后会返回一个json数据`{'ret':0, 'message':'xxx'}`, ret = 0 表示成功**
+```bash
+# 发送文本消息，POST请求，需要传递参数 `to` 和 `content`
+curl -H 'Accept:application/json' --data "to=$to_user_name&content=$your_content" http://localhost:$your_port/api/wechat/messages/text
+```
+```bash
+# 发送图片消息，POST请求，需要传递参数 `to` 和 `path`
+curl -H 'Accept:application/json' --data "to=$to_user_name&path=$image_path" http://localhost:$your_port/api/wechat/messages/image
+```
+```bash
+# 发送表情（动图）消息，POST请求，需要传递参数 `to` 和 `path`
+curl -H 'Accept:application/json' --data "to=$to_user_name&path=$emotion_path" http://localhost:$your_port/api/wechat/messages/emotion
+```
+```bash
+# 发送视频消息，POST请求，需要传递参数 `to` 和 `path`
+curl -H 'Accept:application/json' --data "to=$to_user_name&path=$file_path" http://localhost:$your_port/api/wechat/messages/file
+```
 
 ## 开源协议
 

@@ -103,7 +103,7 @@ cd sowechat
 php artisan migrate
 ```
 
-##### 2.3.2 Run the `Middle`component For new
+##### 2.3.2 Run the `Middle`component for new
 ```bash
 php artisan wechat:listen --new
 ```
@@ -115,17 +115,43 @@ php artisan wechat:listen
 ```
 >Run the command without passing argument --new
 
-##### 2.3.4 Processing Wechat Message
+##### 2.3.4 Processing wechat message
 ```bash
 php artisan queue:work
 ```
 >See Job`App\Jobs\ProcessWechatMessage` and sample class `App\Listeners\SaveWechatMessageListener` for more detail.
 
-##### 2.3.5 Sending Wechat Message
+##### 2.3.5 Sending wechat message (Console)
 ```bash
 php artisan wechat:send
 ```
 >See class `App\Console\Commands\WechatSend` for more detail.
+
+##### 2.3.6 Sending wechat message (Web Api)
+```bash
+php artisan wechat:serve --port=your_port
+```
+>When you call the api, you must start the web server.
+>The easiest way is start a mini server with the command above.
+>Also, you can deploy you code use `Apache` `Nginx` etc
+
+**there has some examples, this will return a json response `{'ret':0, 'message':'xxx'}`, success if the `ret` equals 0**
+```bash
+# send text, POST request, need params `to` and `content`
+curl -H 'Accept:application/json' --data "to=$to_user_name&content=$your_content" http://localhost:$your_port/api/wechat/messages/text
+```
+```bash
+# send image, POST request, need params `to` and `path`
+curl -H 'Accept:application/json' --data "to=$to_user_name&path=$image_path" http://localhost:$your_port/api/wechat/messages/image
+```
+```bash
+# send emotion, POST request, need params `to` and `path`
+curl -H 'Accept:application/json' --data "to=$to_user_name&path=$emotion_path" http://localhost:$your_port/api/wechat/messages/emotion
+```
+```bash
+# send file, POST request, need params `to` and `path`
+curl -H 'Accept:application/json' --data "to=$to_user_name&path=$file_path" http://localhost:$your_port/api/wechat/messages/file
+```
 
 ## OpenSource
 
