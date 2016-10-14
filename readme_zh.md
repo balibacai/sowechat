@@ -14,7 +14,7 @@
 >5. 采用`Php`开发, `Php`是世界上最好的语言
 
 ## 系统架构图
-![系统架构图](http://oukei.me/images/sowechat_arch_v1.0.svg)
+![系统架构图](http://oukei.me/images/sowechat_arch_v1.1.svg)
 >1. 该系统有三个部分组成, 各部分相互独立、互不影响
 >2. `中间部分`为整个系统的核心部分, 负责微信扫码登录以及监听消息等, 为了系统`7*24`小时无终止运行, 该系统做了大量鲁棒性的工作。同时，该部分起到桥梁作用，对上游（左边部分）提供发送消息的能力；对下游（右边部分）推送经过封装的监听到的最新消息；该部分通过调用`php artisan wechat:listen`命令运行
 >3. `左边部分`为系统发送消息的部分，用户可以自定义发送逻辑。同时该部分又是跨平台的。样例参考 `App\Console\Commands\WechatSend`， 在控制台中运行`php artisan wechat:send`即可看到效果

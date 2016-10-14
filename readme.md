@@ -16,7 +16,7 @@
 >5. based on `Php`,  the best language in The World! :)
 
 ## System Architecture
-![System Architecture](http://oukei.me/images/sowechat_arch_v1.0.svg)
+![System Architecture](http://oukei.me/images/sowechat_arch_v1.1.svg)
 >1. This System is composed of 3 independent components
 >2. The `Middle` component is core of The System,  doing qrcode scan & message listening; I do a lot of work for pupose of robust. Meantime, as a connector, it supports message-sending ability for the `Left` component, and pushs simple-formated message to the `Right` component. Run command `php artisan wechat:listen` to make it working.
 >3. The`Left`component is used for sending message, the user can send message to any friends in his code. class `App\Console\Commands\WechatSend` is a sample, run command`php artisan wechat:send` to make it working.
